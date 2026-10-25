@@ -1,0 +1,1264 @@
+/* ============================================
+   SERVICO SERVICE — Consome /api/contracts e /api/dashboard
+   ============================================ */
+import api from './api';
+import { nextAbortSignal, resolveAbortSignal } from './abortableRequest';
+import {
+  cachedFetch,
+  chavePadraoServico,
+  chaveServicosContrato,
+  chaveSaudeContratos,
+  invalidateCacheExact,
+  invalidateCachePrefix,
+} from './requestCache';
+
+export function invalidatePadraoServico(contractId: string, servicoId: string): void {
+  invalidateCacheExact(chavePadraoServico(contractId, servicoId));
+}
+
+export function invalidateCachesServico(contractId: string, servicoId: string): void {
+  invalidatePadraoServico(contractId, servicoId);
+  invalidateCacheExact(chaveServicosContrato(contractId));
+  invalidateCacheExact(chaveSaudeContratos());
+  invalidateCachePrefix(`planilha:${contractId}:${servicoId}`);
+  invalidateCachePrefix(`dia:${contractId}:${servicoId}`);
+  invalidateCachePrefix(`brutos:${contractId}:${servicoId}`);
+  invalidateCachePrefix(`coleta-agg:${contractId}:${servicoId}`);
+  invalidateCachePrefix(`mapeamento-op:${contractId}:${servicoId}`);
+  invalidateCachePrefix(`mapeamento-op-v2:${contractId}:${servicoId}`);
+  invalidateCachePrefix(`mapeamento-op-v6:${contractId}:${servicoId}`);
+  invalidateCachePrefix(`mapeamento-op-v7:${contractId}:${servicoId}`);
+  invalidateCachePrefix(`mapeamento-op-v8:${contractId}:${servicoId}`);
+  invalidateCachePrefix(`mapeamento-op-v9:${contractId}:${servicoId}`);
+  invalidateCachePrefix(`mapeamento-op-v10:${contractId}:${servicoId}`);
+  invalidateCachePrefix(`rotas-ciclo:${contractId}:${servicoId}`);
+  invalidateCachePrefix(`resumo-ciclo:${contractId}:${servicoId}`);
+  invalidateCachePrefix(`kpi-valores:${contractId}:${servicoId}`);
+  invalidateCachePrefix('kpis-consolidado:');
+}
+
+export interface LinhaMapeamentoOperacional {
+  rota: string;
+  motorista: string;
+  placa: string;
+  tipoCaminhao: string | null;
+  dias: number;
+  viagens: number;
+  tonelagem: number;
+  kmTotal: number;
+  horasTotais: number;
+  horasProdutivas: number;
+  horasImprodutivas: number;
+  horasPorViagem: number;
+  horasProdutivasPorViagem: number;
+  kmPorViagem: number;
+  tonPorHora: number;
+  percentualProdutivo: number;
+  /** Base → primeira rota */
+  horasDeslocamentoInicial?: number;
+  /** Saída de uma rota → chegada na próxima (inclui descarga/aterro) */
+  horasEntreRotas?: number;
+  /** Saída da última rota → base */
+  horasRetornoFinal?: number;
+  horasImprodutivasNaoDetalhadas?: number;
+  /** KM rodado dentro das rotas */
+  kmProdutivo?: number;
+  /** KM rodado fora das rotas */
+  kmImprodutivo?: number;
+  kmDeslocamentoInicial?: number;
+  kmEntreRotas?: number;
+  kmRetornoFinal?: number;
+}
+
+/** Onde a hora e o KM improdutivos foram gastos, por placa / motorista / rota. */
+export interface TrechosJornadaDimensao {
+  chave: string;
+  viagens: number;
+  horasTotais: number;
+  horasProdutivas: number;
+  horasImprodutivas: number;
+  horasDeslocamentoInicial: number;
+  horasEntreRotas: number;
+  horasRetornoFinal: number;
+  horasImprodutivasNaoDetalhadas: number;
+  kmTotal: number;
+  kmProdutivo: number;
+  kmImprodutivo: number;
+  kmDeslocamentoInicial: number;
+  kmEntreRotas: number;
+  kmRetornoFinal: number;
+  percentualProdutivo: number;
+  horasImprodutivasPorViagem: number | null;
+  kmImprodutivoPorViagem: number | null;
+}
+
+export interface TopRotaProdutividadeEncher {
+  rota: string;
+  viagens: number;
+  horasTotais: number;
+  horasProdutivas: number;
+  horasImprodutivas: number;
+  horasPorViagem: number;
+  kmTotal: number;
+  tipoPredominante?: string | null;
+  pesoKg?: number;
+  pesoMedioKg?: number;
+  pesoIdealKg?: number | null;
+  pctIdeal?: number | null;
+  tempoEqEncher?: number | null;
+  atingiuIdeal?: boolean;
+  estimado?: boolean;
+  tonPorHora?: number;
+  faixa?: 'bom' | 'regular' | 'ruim' | null;
+}
+
+export interface ViagemPesoRotaItem {
+  data?: string | null;
+  rota: string;
+  placa: string;
+  motorista: string;
+  tipo: string | null;
+  nViagem: number;
+  pesoKg: number;
+  pesoIdealKg: number | null;
+  pctIdeal: number | null;
+  encheu: boolean;
+  semPesagem?: boolean;
+  horasProdutivasViagem: number;
+  horasProdutivasRota: number;
+  horasTotaisRota?: number;
+  kmTotalRota?: number;
+  kmViagem?: number;
+  origemHora: 'trecho' | 'rateio';
+  tempoEqEncher: number | null;
+  estimado: boolean;
+}
+
+export interface MapeamentoOperacionalResponse {
+  resumo: {
+    linhas: number;
+    truncado: boolean;
+    rotas: number;
+    motoristas: number;
+    placas: number;
+    viagens: number;
+    kmTotal: number;
+    horasTotais: number;
+    horasProdutivas: number;
+    horasImprodutivas: number;
+    percentualProdutivo: number;
+    tonelagem: number;
+    horasDeslocamentoInicial?: number;
+    horasEntreRotas?: number;
+    horasRetornoFinal?: number;
+    horasImprodutivasNaoDetalhadas?: number;
+    kmProdutivo?: number;
+    kmImprodutivo?: number;
+    kmDeslocamentoInicial?: number;
+    kmEntreRotas?: number;
+    kmRetornoFinal?: number;
+    registrosComTrecho?: number;
+    registros?: number;
+  };
+  trechosPorPlaca?: TrechosJornadaDimensao[];
+  trechosPorMotorista?: TrechosJornadaDimensao[];
+  trechosPorRota?: TrechosJornadaDimensao[];
+  linhas: LinhaMapeamentoOperacional[];
+  topRotasLentas: TopRotaProdutividadeEncher[];
+  viagensPesoRota?: ViagemPesoRotaItem[];
+  dataInicio: string | null;
+  dataFim: string | null;
+  tipoServico?: string;
+}
+
+export type DirecaoTendenciaRota = 'melhorando' | 'estavel' | 'piorando';
+
+export interface DiaRotaCiclo {
+  data: string;
+  viagens: number;
+  toneladas: number;
+  km: number;
+  horasProdutivas: number;
+  tonPorViagem: number | null;
+}
+
+export interface TendenciaRotaCiclo {
+  direcao: DirecaoTendenciaRota;
+  variacaoPct: number;
+  primeiraMetade: number;
+  segundaMetade: number;
+}
+
+/** Comportamento de uma rota ao longo do ciclo, não só num dia. */
+export interface FichaRotaCiclo {
+  rota: string;
+  tipoPredominante: string | null;
+  diasComOperacao: number;
+  viagens: number;
+  toneladas: number;
+  km: number;
+  horasProdutivas: number;
+  medianaViagensDia: number | null;
+  medianaTonDia: number | null;
+  medianaKmDia: number | null;
+  medianaTonPorViagem: number | null;
+  cvKmDia: number | null;
+  cvTonPorViagem: number | null;
+  kmDiaMin: number | null;
+  kmDiaMax: number | null;
+  tendencia: TendenciaRotaCiclo | null;
+  instavelKm: boolean;
+  instavelCarga: boolean;
+  alertas: string[];
+  porDia: DiaRotaCiclo[];
+}
+
+export interface FichaRotasCicloResponse {
+  rotas: FichaRotaCiclo[];
+  resumo: {
+    rotas: number;
+    rotasInstaveis: number;
+    rotasPiorando: number;
+    rotasMelhorando: number;
+    diasPeriodo: number | null;
+    registros: number;
+    truncado: boolean;
+  };
+  dataInicio: string | null;
+  dataFim: string | null;
+}
+
+export interface KpiConsolidadoItem {
+  id: string;
+  nome: string;
+  valor: number | null;
+  formatado: string;
+  formato: 'numero' | 'moeda' | 'porcentagem';
+  origem: 'contrato' | 'servico';
+}
+
+export interface ServicoConsolidado {
+  id: string;
+  servicoNome: string;
+  tipoServico?: string;
+  contratoId: string;
+  contratoNome: string;
+  kpis: KpiConsolidadoItem[];
+  ultimoUpload: string | null;
+  totalRegistros: number;
+  temConfigDashboard: boolean;
+}
+
+export interface FiltrosDashboardPrincipal {
+  dataInicio?: string;
+  dataFim?: string;
+  placa?: string;
+  regional?: string;
+  tipoCaminhao?: string;
+  /** resumo = metadados rápidos; completo = KPIs calculados */
+  modo?: 'resumo' | 'completo';
+}
+
+export interface FiltrosDisponiveis {
+  tiposCaminhao: string[];
+}
+
+export interface KpisConsolidadoResponse {
+  servicos: ServicoConsolidado[];
+  filtrosDisponiveis?: FiltrosDisponiveis;
+  modo?: 'resumo' | 'completo';
+}
+
+export interface CompararKpiCelula {
+  valor: number | null;
+  formatado: string;
+  formato: string;
+}
+
+export interface CompararKpiAnalise {
+  min: number | null;
+  max: number | null;
+  media: number | null;
+  amplitude: number | null;
+  amplitudePct: number | null;
+  melhorId: string | null;
+  piorId: string | null;
+  variacoes: Record<string, { pctVsMelhor: number | null; pctVsMedia: number | null }>;
+}
+
+export interface CompararKpiLinha {
+  chave: string;
+  nome: string;
+  formato: string;
+  secaoPeso?: 'operacao' | 'faixa' | 'frota' | 'cenario';
+  valores: Record<string, CompararKpiCelula>;
+  analise?: CompararKpiAnalise;
+}
+
+export interface PeriodoCicloContrato {
+  mesReferencia: number;
+  anoReferencia: number;
+  diaInicioCiclo: number;
+  dataInicio: string;
+  dataFim: string;
+  label: string;
+}
+
+/** Extremo de peso de uma viagem (pesoMedioKg = peso da viagem em kg; nome = rota). */
+export interface RotaPesoExtremo {
+  nome: string;
+  pesoMedioKg: number;
+  viagens: number;
+}
+
+export interface AnalisePesoColeta {
+  numeroViagens: number;
+  pesoMedioKg: number;
+  /** Menor peso de viagem no ciclo */
+  rotaMinima: RotaPesoExtremo | null;
+  /** Maior peso de viagem no ciclo */
+  rotaMaxima: RotaPesoExtremo | null;
+  faixas: Array<{ label: string; quantidade: number; pct: number }>;
+  tiposCaminhao: { MINI: number; TOCO: number; BASCULANTE: number; TRUCK: number; soma: number };
+  caminhoesUnicos: number;
+  caixaMediaKg: number;
+  densidadeOtima: number;
+  mediaIdealKg: number;
+  perdaTon: number;
+  /** Origem do tipo de caminhão — ausente em respostas antigas em cache. */
+  frotaTipoDeduzido?: {
+    placas: number;
+    porTipo: { MINI: number; TOCO: number; BASCULANTE: number; TRUCK: number };
+    placasLista: string[];
+    placasDeclaradas: number;
+    placasSemTipo: number;
+  } | null;
+  viagensTipoDeduzido?: number;
+  porDia?: Array<{
+    data: string;
+    viagens: number;
+    rotas: number;
+    pesoTotalKg: number;
+    pesoMedioKg: number;
+  }>;
+}
+
+export interface CompararPorTipoServico {
+  id: string;
+  nome: string;
+  tipo: string;
+  contratoId?: string;
+  contratoNome?: string;
+  totalRegistros: number;
+  periodo?: PeriodoCicloContrato;
+  analisePeso?: AnalisePesoColeta | null;
+}
+
+export interface FiltrosComparacao {
+  periodosPorContrato?: Record<string, {
+    mes?: number;
+    ano?: number;
+    dataInicio?: string;
+    dataFim?: string;
+  }>;
+  mesReferencia?: number;
+  anoReferencia?: number;
+  dataInicio?: string;
+  dataFim?: string;
+  /** Wallboard TV: payload leve no backend */
+  perfil?: 'tv';
+}
+
+export interface CompararInsight {
+  kpi: string;
+  amplitudePct: number | null;
+  melhorServico?: string;
+  melhorContrato?: string;
+  piorServico?: string;
+  piorContrato?: string;
+  melhorValor?: string;
+  piorValor?: string;
+}
+
+export interface CompararPorTipoResponse {
+  escopo?: 'global' | 'contrato';
+  contratoId?: string;
+  contratoNome?: string;
+  diaInicioCiclo?: number;
+  periodo?: PeriodoCicloContrato;
+  periodosDistintos?: boolean;
+  tipoServico: string;
+  tipoServicoLabel: string;
+  servicos: CompararPorTipoServico[];
+  kpiLinhas: CompararKpiLinha[];
+  insights?: CompararInsight[];
+  resumo?: {
+    totalServicos: number;
+    totalContratos: number;
+    totalKpis: number;
+    kpisComVariacao: number;
+  };
+  mensagem?: string;
+}
+
+export type FaixaDominante3d = 'pessimo' | 'ruim' | 'otimo' | 'excedido';
+
+export interface PontoQualidadeIdeal3d {
+  data: string;
+  rota: string;
+  viagens: number;
+  pctIdealMedio: number;
+  faixaDominante: FaixaDominante3d;
+  faixas: Record<FaixaDominante3d, number>;
+  servicoId: string;
+  servicoNome: string;
+  contratoId: string;
+  contratoNome: string;
+}
+
+export interface QualidadeIdeal3dResponse {
+  tipoServico: string;
+  tipoServicoLabel: string;
+  dataInicio: string;
+  dataFim: string;
+  totalPontos: number;
+  totalViagens: number;
+  rotas: string[];
+  dias: string[];
+  pontos: PontoQualidadeIdeal3d[];
+}
+
+export type MetricaEvolucaoId =
+  | 'peso_ideal'
+  | 'tempo_encher'
+  | 'velocidade'
+  | 'ton_por_km'
+  | 'ton_por_hora';
+
+export interface DefFaixaEvolucao {
+  id: string;
+  label: string;
+  cor: string;
+  regra: string;
+}
+
+export interface PontoEvolucaoOperacional {
+  data: string;
+  rota: string;
+  viagens: number;
+  faixaDominante: string;
+  faixas: Record<string, number>;
+  servicoId: string;
+  servicoNome: string;
+  contratoId: string;
+  contratoNome: string;
+  caixaMediaL?: number;
+}
+
+export interface SerieEvolucaoOperacional {
+  id: MetricaEvolucaoId;
+  label: string;
+  descricao: string;
+  faixas: DefFaixaEvolucao[];
+  totalPontos: number;
+  totalViagens: number;
+  pontos: PontoEvolucaoOperacional[];
+}
+
+export interface EvolucaoOperacionalResponse {
+  tipoServico: string;
+  tipoServicoLabel: string;
+  dataInicio: string;
+  dataFim: string;
+  dias: string[];
+  series: SerieEvolucaoOperacional[];
+}
+
+export interface ServicoPorTipoItem {
+  id: string;
+  nome: string;
+  tipo: string;
+  contratoId: string;
+  contratoNome: string;
+  totalRegistros: number;
+  temKpis: boolean;
+}
+
+const servicoService = {
+  /** Busca KPIS consolidados de todos os serviços para o Dashboard Principal */
+  async getKpisConsolidado(filtros?: FiltrosDashboardPrincipal): Promise<KpisConsolidadoResponse> {
+    const params = new URLSearchParams();
+    if (filtros) {
+      if (filtros.modo) params.set('modo', filtros.modo);
+      if (filtros.dataInicio) params.set('dataInicio', filtros.dataInicio);
+      if (filtros.dataFim) params.set('dataFim', filtros.dataFim);
+      if (filtros.placa) params.set('placa', filtros.placa);
+      if (filtros.regional) params.set('regional', filtros.regional);
+      if (filtros.tipoCaminhao) params.set('tipoCaminhao', filtros.tipoCaminhao);
+    }
+    const query = params.toString();
+    const url = query ? `/dashboard/kpis-consolidado?${query}` : '/dashboard/kpis-consolidado';
+    return cachedFetch(
+      `kpis-consolidado:${query}`,
+      async () => {
+        const { data } = await api.get<KpisConsolidadoResponse>(url, {
+          signal: nextAbortSignal('servico:getKpisConsolidado'),
+        });
+        return data;
+      },
+      { ttlMs: 60_000 },
+    );
+  },
+
+  /** Lista serviços de um contrato (id, nome, tipo) */
+  async listarServicosContrato(contratoId: string, opts?: { force?: boolean }): Promise<Array<{
+    id: string;
+    nome: string;
+    tipo: string;
+    descricao?: string | null;
+    configFaturamento?: unknown;
+    criadoEm?: string;
+  }>> {
+    return cachedFetch(
+      chaveServicosContrato(contratoId),
+      async () => {
+        const { data } = await api.get<{ servicos: Array<{
+          id: string;
+          nome: string;
+          tipo: string;
+          descricao?: string | null;
+          configFaturamento?: unknown;
+          criadoEm?: string;
+        }> }>(
+          `/contracts/${contratoId}/servicos`,
+        );
+        return data.servicos || [];
+      },
+      { ttlMs: 60_000, force: opts?.force },
+    );
+  },
+
+  /** Compara KPIs entre serviços do mesmo tipo dentro de um contrato */
+  async compararPorTipo(
+    contratoId: string,
+    tipoServico: string,
+    filtros?: FiltrosComparacao,
+  ): Promise<CompararPorTipoResponse> {
+    const params = new URLSearchParams({ tipoServico });
+    if (filtros?.periodosPorContrato && Object.keys(filtros.periodosPorContrato).length > 0) {
+      params.set('periodosPorContrato', JSON.stringify(filtros.periodosPorContrato));
+    }
+    if (filtros?.mesReferencia) params.set('mesReferencia', String(filtros.mesReferencia));
+    if (filtros?.anoReferencia) params.set('anoReferencia', String(filtros.anoReferencia));
+    if (filtros?.dataInicio) params.set('dataInicio', filtros.dataInicio);
+    if (filtros?.dataFim) params.set('dataFim', filtros.dataFim);
+    const { data } = await api.get<CompararPorTipoResponse>(
+      `/contracts/${contratoId}/servicos/comparar-por-tipo?${params.toString()}`,
+      { signal: nextAbortSignal('servico:compararPorTipo') },
+    );
+    return data;
+  },
+
+  /** Lista serviços de um tipo em todos os contratos */
+  async listarServicosPorTipo(tipoServico: string): Promise<{
+    servicos: ServicoPorTipoItem[];
+    tiposDisponiveis: Array<{ tipo: string; label: string }>;
+  }> {
+    const params = new URLSearchParams({ tipoServico });
+    const { data } = await api.get<{
+      servicos: ServicoPorTipoItem[];
+      tiposDisponiveis: Array<{ tipo: string; label: string }>;
+    }>(`/dashboard/servicos-por-tipo?${params.toString()}`);
+    return data;
+  },
+
+  /** Compara KPIs entre serviços do mesmo tipo — inclusive entre contratos.
+   * Sem servicoIds (ou lista vazia): compara todos do tipo com dados.
+   * filtros.perfil = 'tv' → resposta leve para wallboard. */
+  async compararGlobal(
+    tipoServico: string,
+    servicoIds: string[] = [],
+    filtros?: FiltrosComparacao,
+  ): Promise<CompararPorTipoResponse> {
+    const params = new URLSearchParams({ tipoServico });
+    if (servicoIds.length > 0) params.set('servicoIds', servicoIds.join(','));
+    if (filtros?.perfil) params.set('perfil', filtros.perfil);
+    if (filtros?.periodosPorContrato && Object.keys(filtros.periodosPorContrato).length > 0) {
+      params.set('periodosPorContrato', JSON.stringify(filtros.periodosPorContrato));
+    }
+    if (filtros?.mesReferencia) params.set('mesReferencia', String(filtros.mesReferencia));
+    if (filtros?.anoReferencia) params.set('anoReferencia', String(filtros.anoReferencia));
+    if (filtros?.dataInicio) params.set('dataInicio', filtros.dataInicio);
+    if (filtros?.dataFim) params.set('dataFim', filtros.dataFim);
+    const { data } = await api.get<CompararPorTipoResponse>(
+      `/dashboard/comparar-por-tipo?${params.toString()}`,
+      { signal: nextAbortSignal('servico:compararGlobal') },
+    );
+    return data;
+  },
+
+  /** Scatter 3D TV: pontos dia × rota (% vs ideal × viagens). */
+  async getQualidadeIdeal3d(opts: {
+    servicoIds: string[];
+    dataInicio: string;
+    dataFim: string;
+    tipoServico?: string;
+  }): Promise<QualidadeIdeal3dResponse> {
+    const params = new URLSearchParams({
+      tipoServico: opts.tipoServico || 'coleta_caminhao',
+      servicoIds: opts.servicoIds.join(','),
+      dataInicio: opts.dataInicio,
+      dataFim: opts.dataFim,
+    });
+    const { data } = await api.get<QualidadeIdeal3dResponse>(
+      `/dashboard/qualidade-ideal-3d?${params.toString()}`,
+      { signal: nextAbortSignal('servico:qualidadeIdeal3d'), timeout: 60000 },
+    );
+    return data;
+  },
+
+  /** Evolução diária TV: peso ideal + tempo TOCO/TRUCADO/MINI + velocidade + km/t + HR/t. */
+  async getEvolucaoOperacional(opts: {
+    servicoIds: string[];
+    dataInicio: string;
+    dataFim: string;
+    tipoServico?: string;
+  }): Promise<EvolucaoOperacionalResponse> {
+    const params = new URLSearchParams({
+      tipoServico: opts.tipoServico || 'coleta_caminhao',
+      servicoIds: opts.servicoIds.join(','),
+      dataInicio: opts.dataInicio,
+      dataFim: opts.dataFim,
+    });
+    const { data } = await api.get<EvolucaoOperacionalResponse>(
+      `/dashboard/evolucao-operacional?${params.toString()}`,
+      { signal: nextAbortSignal('servico:evolucaoOperacional'), timeout: 90000 },
+    );
+    return data;
+  },
+
+  async getPadrao(contractId: string, servicoId: string, opts?: { force?: boolean; resumo?: boolean }) {
+    return cachedFetch(
+      chavePadraoServico(contractId, servicoId) + (opts?.resumo ? ':resumo' : ''),
+      async () => {
+        const qs = opts?.resumo ? '?resumo=1' : '';
+        const { data } = await api.get(`/contracts/${contractId}/servicos/${servicoId}/padrao${qs}`);
+        return data;
+      },
+      { force: opts?.force },
+    );
+  },
+
+  /** Busca paginada da planilha — uma requisição por página (sem fetch por linha). */
+  async buscarDadosPlanilha(
+    contractId: string,
+    servicoId: string,
+    opts?: { pagina?: number; limite?: number; uploadId?: string },
+  ) {
+    const pagina = opts?.pagina ?? 1;
+    const limite = opts?.limite ?? 100;
+    const uploadId = opts?.uploadId;
+    const chave = `planilha:${contractId}:${servicoId}:${pagina}:${limite}:${uploadId || ''}`;
+
+    return cachedFetch(chave, () => this.getDadosPaginados(contractId, servicoId, {
+      page: pagina,
+      limit: limite,
+      uploadId,
+    }), { ttlMs: 60_000 });
+  },
+
+  async getDadosBrutos(contractId: string, servicoId: string, limite = 500) {
+    const chave = `brutos:${contractId}:${servicoId}:${limite}`;
+    return cachedFetch(chave, async () => {
+      const { data } = await api.get(`/contracts/${contractId}/servicos/${servicoId}/dados-brutos`, {
+        params: { limite },
+        signal: nextAbortSignal('servico:getDadosBrutos'),
+      });
+      return data;
+    }, { ttlMs: 120_000 });
+  },
+
+  /** Registros paginados de um dia — uma requisição por página. */
+  async buscarRegistrosDia(
+    contractId: string,
+    servicoId: string,
+    data: string,
+    opts?: { pagina?: number; limite?: number; incluirInconsistentes?: boolean },
+  ) {
+    const pagina = opts?.pagina ?? 1;
+    const limite = opts?.limite ?? 100;
+    const inc = opts?.incluirInconsistentes ? '1' : '0';
+    const chave = `dia:${contractId}:${servicoId}:${data}:${pagina}:${limite}:${inc}`;
+    return cachedFetch(chave, () => this.getDadosDia(contractId, servicoId, data, {
+      page: pagina,
+      limit: limite,
+      incluirInconsistentes: opts?.incluirInconsistentes,
+    }), { ttlMs: 60_000 });
+  },
+
+  async getDadosDia(
+    contractId: string,
+    servicoId: string,
+    data: string,
+    opts?: {
+      incluirInconsistentes?: boolean;
+      page?: number;
+      limit?: number;
+      /** Baixa o dia inteiro (legado / export). Evitar em volumes grandes. */
+      all?: boolean;
+    },
+  ) {
+    const params: Record<string, string | number> = {};
+    if (opts?.incluirInconsistentes) params.incluirInconsistentes = '1';
+    if (opts?.all) params.all = '1';
+    if (opts?.page != null) params.page = opts.page;
+    if (opts?.limit != null) params.limit = opts.limit;
+    const { data: body } = await api.get(
+      `/contracts/${contractId}/servicos/${servicoId}/dados-dia/${data}`,
+      { params: Object.keys(params).length ? params : undefined },
+    );
+    return body as {
+      data: string;
+      dados: Record<string, unknown>[];
+      total: number;
+      pagina?: number;
+      totalPaginas?: number;
+      limit?: number;
+      truncado?: boolean;
+      apenasValidos: boolean;
+      tipoServico?: string | null;
+    };
+  },
+
+  /**
+   * Agregação SQL de coleta (resumo + rankings) — não materializa linhas.
+   */
+  async getColetaAgregacao(
+    contractId: string,
+    servicoId: string,
+    opts?: { data?: string; dataInicio?: string; dataFim?: string; topN?: number },
+  ) {
+    const chave = `coleta-agg:${contractId}:${servicoId}:${opts?.data || ''}:${opts?.dataInicio || ''}:${opts?.dataFim || ''}:${opts?.topN ?? ''}`;
+    return cachedFetch(chave, async () => {
+      const { data } = await api.get(
+        `/contracts/${contractId}/servicos/${servicoId}/coleta/agregacao`,
+        { params: opts, signal: nextAbortSignal('servico:getColetaAgregacao') },
+      );
+      return data;
+    }, { ttlMs: 120_000 }) as Promise<{
+      resumo: {
+        registros: number;
+        viagens: number;
+        pesoTotalKg: number;
+        pesoTotalTon: number;
+        kmTotal: number;
+        horasProdutivas: number;
+        placas: number;
+        motoristas: number;
+        regionais: number;
+        distritos: number;
+        faturamento: number;
+      };
+      porMotorista: {
+        chave: string; label: string; viagens: number; tonelagem: number;
+        kmTotal: number; horasProdutivas: number; tonPorViagem: number; kmPorViagem: number; placa?: string;
+      }[];
+      porPlaca: {
+        chave: string; label: string; viagens: number; tonelagem: number;
+        kmTotal: number; horasProdutivas: number; tonPorViagem: number; kmPorViagem: number;
+      }[];
+      porDistrito: {
+        chave: string; label: string; viagens: number; tonelagem: number;
+        kmTotal: number; horasProdutivas: number; tonPorViagem: number; kmPorViagem: number;
+      }[];
+      dataInicio: string | null;
+      dataFim: string | null;
+      tipoServico?: string;
+      modo?: string;
+    }>;
+  },
+
+  /**
+   * Mapeamento operacional do ciclo: rota × motorista × placa (tempo e km).
+   */
+  async getMapeamentoOperacional(
+    contractId: string,
+    servicoId: string,
+    opts?: { data?: string; dataInicio?: string; dataFim?: string },
+  ) {
+    const chave = `mapeamento-op-v10:${contractId}:${servicoId}:${opts?.data || ''}:${opts?.dataInicio || ''}:${opts?.dataFim || ''}`;
+    return cachedFetch(chave, async () => {
+      const { data } = await api.get(
+        `/contracts/${contractId}/servicos/${servicoId}/mapeamento-operacional`,
+        { params: opts, signal: nextAbortSignal('servico:getMapeamentoOperacional') },
+      );
+      return data;
+    }, { ttlMs: 120_000 }) as Promise<MapeamentoOperacionalResponse>;
+  },
+
+  /** PDF diário no mesmo formato do chatbot (Coleta BH). */
+  async baixarRelatorioDiaOperacao(
+    contractId: string,
+    servicoId: string,
+    data: string,
+  ): Promise<{ blob: Blob; filename: string }> {
+    const resp = await api.get(
+      `/contracts/${contractId}/servicos/${servicoId}/relatorio-dia-operacao`,
+      { params: { data }, responseType: 'blob', timeout: 120000 },
+    );
+    const header = String(resp.headers?.['content-disposition'] || '');
+    const match = header.match(/filename="?([^"]+)"?/i);
+    const filename = match?.[1] || `Coleta_Operacao_${data}.pdf`;
+    return { blob: resp.data as Blob, filename };
+  },
+
+  /**
+   * Ficha de cada rota no ciclo: mediana do dia, variabilidade e tendência.
+   */
+  async getRotasCiclo(
+    contractId: string,
+    servicoId: string,
+    opts?: { dataInicio?: string; dataFim?: string },
+  ) {
+    const chave = `rotas-ciclo-v1:${contractId}:${servicoId}:${opts?.dataInicio || ''}:${opts?.dataFim || ''}`;
+    return cachedFetch(chave, async () => {
+      const { data } = await api.get(
+        `/contracts/${contractId}/servicos/${servicoId}/rotas-ciclo`,
+        { params: opts, signal: nextAbortSignal('servico:getRotasCiclo') },
+      );
+      return data;
+    }, { ttlMs: 120_000 }) as Promise<FichaRotasCicloResponse>;
+  },
+
+  /** KPIs calculados no backend — cache + deduplicação. */
+  async getKpiValores(
+    contractId: string,
+    servicoId: string,
+    filtros?: {
+      dataInicio?: string;
+      dataFim?: string;
+      placa?: string;
+      regional?: string;
+      filtrosDinamicos?: Record<string, string>;
+    },
+    signal?: AbortSignal,
+  ) {
+    const f = filtros || {};
+    const dinamicos = f.filtrosDinamicos ? JSON.stringify(f.filtrosDinamicos) : '';
+    const chave = `kpi-valores:${contractId}:${servicoId}:${f.dataInicio || ''}:${f.dataFim || ''}:${f.placa || ''}:${f.regional || ''}:${dinamicos}`;
+    return cachedFetch(chave, async () => {
+      const params = new URLSearchParams();
+      if (f.dataInicio) params.append('dataInicio', f.dataInicio);
+      if (f.dataFim) params.append('dataFim', f.dataFim);
+      if (f.placa) params.append('placa', f.placa);
+      if (f.regional) params.append('regional', f.regional);
+      if (f.filtrosDinamicos) {
+        for (const [coluna, valor] of Object.entries(f.filtrosDinamicos)) {
+          if (valor) params.append(`filtro_${coluna}`, valor);
+        }
+      }
+      const qs = params.toString();
+      const { data } = await api.get(
+        `/contracts/${contractId}/servicos/${servicoId}/kpi-valores${qs ? '?' + qs : ''}`,
+        { signal: signal ?? nextAbortSignal('servico:getKpiValores') },
+      );
+      return data;
+    }, { ttlMs: 60_000 });
+  },
+
+  /**
+   * Agregação SQL de roçada (resumo + rankings) — não materializa linhas.
+   */
+  async getRocadaAgregacao(
+    contractId: string,
+    servicoId: string,
+    opts?: {
+      data?: string;
+      dataInicio?: string;
+      dataFim?: string;
+      topN?: number;
+      tipoExecucao?: 'manual' | 'mecanizada';
+    },
+  ) {
+    const { data } = await api.get(
+      `/contracts/${contractId}/servicos/${servicoId}/rocada/agregacao`,
+      { params: opts, signal: nextAbortSignal('servico:getRocadaAgregacao') },
+    );
+    return data as {
+      resumo: {
+        registros: number;
+        areaM2: number;
+        areaManualM2?: number;
+        areaMecanizadaM2?: number;
+        areaDesconhecidaM2?: number;
+        registrosManual?: number;
+        registrosMecanizada?: number;
+        bairros: number;
+        operadores: number;
+        equipes: number;
+        equipamentos: number;
+      };
+      porTipo?: { chave: string; label: string; registros: number; areaM2: number }[];
+      manual?: {
+        tipo: 'manual';
+        label: string;
+        registros: number;
+        areaM2: number;
+        bairros: number;
+        operadores: number;
+        equipes: number;
+        equipamentos: number;
+        porBairro: { chave: string; label: string; registros: number; areaM2: number }[];
+        porOperador: { chave: string; label: string; registros: number; areaM2: number }[];
+        porEquipe: { chave: string; label: string; registros: number; areaM2: number }[];
+        porEquipamento: { chave: string; label: string; registros: number; areaM2: number }[];
+        frotaCiclo?: { equipes: number; equipamentos: number; labelsEquipamento?: string[] };
+      } | null;
+      mecanizada?: {
+        tipo: 'mecanizada';
+        label: string;
+        registros: number;
+        areaM2: number;
+        bairros: number;
+        operadores: number;
+        equipes: number;
+        equipamentos: number;
+        porBairro: { chave: string; label: string; registros: number; areaM2: number }[];
+        porOperador: { chave: string; label: string; registros: number; areaM2: number }[];
+        porEquipe: { chave: string; label: string; registros: number; areaM2: number }[];
+        porEquipamento: { chave: string; label: string; registros: number; areaM2: number }[];
+        frotaCiclo?: { equipes: number; equipamentos: number; labelsEquipamento?: string[] };
+      } | null;
+      porBairro: { chave: string; label: string; registros: number; areaM2: number }[];
+      porOperador: { chave: string; label: string; registros: number; areaM2: number }[];
+      porEquipe: { chave: string; label: string; registros: number; areaM2: number }[];
+      porEquipamento: { chave: string; label: string; registros: number; areaM2: number }[];
+      dataInicio: string | null;
+      dataFim: string | null;
+      frotaCiclo?: { equipes: number; equipamentos: number; labelsEquipamento?: string[] };
+      tipoServico?: string;
+    };
+  },
+
+  /**
+   * Carrega registros só dos dias informados (em paralelo limitado).
+   * Evita puxar 20k linhas de uma vez para PDF/export de período.
+   */
+  async getDadosPorDatas(
+    contractId: string,
+    servicoId: string,
+    datas: string[],
+    opts?: { incluirInconsistentes?: boolean; concorrencia?: number },
+  ): Promise<Record<string, unknown>[]> {
+    const unicas = [...new Set(datas.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)))];
+    if (!unicas.length) return [];
+
+    const concorrencia = Math.max(1, Math.min(opts?.concorrencia ?? 4, 8));
+    const resultado: Record<string, unknown>[] = [];
+
+    for (let i = 0; i < unicas.length; i += concorrencia) {
+      const lote = unicas.slice(i, i + concorrencia);
+      const partes = await Promise.all(
+        lote.map((data) => this.getDadosDia(contractId, servicoId, data, {
+          ...opts,
+          // Export de período ainda precisa do dia completo (usar com parcimônia).
+          all: true,
+        })),
+      );
+      for (const p of partes) {
+        if (p.dados?.length) resultado.push(...p.dados);
+      }
+    }
+    return resultado;
+  },
+
+  async getDadosPaginados(
+    contractId: string,
+    servicoId: string,
+    params?: { page?: number; limit?: number; uploadId?: string },
+  ) {
+    const { data } = await api.get(`/contracts/${contractId}/servicos/${servicoId}/dados`, {
+      params,
+      signal: nextAbortSignal('servico:getDadosPaginados'),
+    });
+    return data;
+  },
+
+  async getInconsistenciasViagens(contractId: string, servicoId: string, revalidar = true) {
+    const { data } = await api.get(
+      `/contracts/${contractId}/servicos/${servicoId}/inconsistencias-viagens`,
+      { params: { revalidar: revalidar ? 1 : 0 } },
+    );
+    return data;
+  },
+
+  async getVerificacaoViagens(
+    contractId: string,
+    servicoId: string,
+    params?: Record<string, string | undefined>,
+  ) {
+    const { data } = await api.get(
+      `/contracts/${contractId}/servicos/${servicoId}/verificacao-viagens`,
+      { params, signal: nextAbortSignal('servico:getVerificacaoViagens') },
+    );
+    return data;
+  },
+
+  async getResumoCicloPorDia(
+    contractId: string,
+    servicoId: string,
+    params: { dataInicio: string; dataFim: string },
+    opts?: { abortKey?: string },
+  ) {
+    const abortKey = opts?.abortKey
+      || `servico:getResumoCicloPorDia:${params.dataInicio}:${params.dataFim}`;
+    const chave = `resumo-ciclo:${contractId}:${servicoId}:${params.dataInicio}:${params.dataFim}`;
+    return cachedFetch(chave, async () => {
+    const { data } = await api.get(
+      `/contracts/${contractId}/servicos/${servicoId}/resumo-ciclo-por-dia`,
+      { params, signal: nextAbortSignal(abortKey) },
+    );
+    return data as {
+      dias: Array<{
+        data: string;
+        rotas: number;
+        viagens: number;
+        pesoTotalKg: number;
+        pesoTotalTon?: number;
+        kmTotal: number;
+        areaM2?: number;
+        metroLinear?: number;
+        kmLinear?: number;
+        qtdArvore?: number;
+        quantitativo?: number;
+      }>;
+      totais: {
+        rotas: number;
+        viagens: number;
+        pesoTotalKg: number;
+        pesoTotalTon?: number;
+        kmTotal: number;
+        areaM2?: number;
+        metroLinear?: number;
+        kmLinear?: number;
+        qtdArvore?: number;
+        quantitativo?: number;
+      };
+      dataInicio: string;
+      dataFim: string;
+      tipoServico?: string | null;
+    };
+    }, { ttlMs: 120_000 });
+  },
+
+  async getStatusCiclo(
+    contractId: string,
+    servicoId: string,
+    params: { mesReferencia: number; anoReferencia: number },
+  ) {
+    const { data } = await api.get(
+      `/contracts/${contractId}/servicos/${servicoId}/ciclos/status`,
+      { params },
+    );
+    return data as { mesReferencia: number; anoReferencia: number; fechado: boolean };
+  },
+
+  async listarCiclosFechados(contractId: string, servicoId: string) {
+    const { data } = await api.get(
+      `/contracts/${contractId}/servicos/${servicoId}/ciclos-fechados`,
+    );
+    return data as {
+      ciclos: Array<{
+        mesReferencia: number;
+        anoReferencia: number;
+        dataInicio: string;
+        dataFim: string;
+        label: string;
+        fechadoEm: string;
+        uploadIds: number[];
+        totalRegistros: number;
+      }>;
+    };
+  },
+
+  async fecharCiclo(
+    contractId: string,
+    servicoId: string,
+    body: { mesReferencia: number; anoReferencia: number },
+  ) {
+    const { data } = await api.post(
+      `/contracts/${contractId}/servicos/${servicoId}/ciclos/fechar`,
+      body,
+    );
+    return data as {
+      message: string;
+      ciclo: { label: string; dataInicio: string; dataFim: string };
+      uploadIds: number[];
+      totalRegistros: number;
+      backupPlanilha?: {
+        ok: boolean;
+        caminho?: string;
+        caminhoHost?: string;
+        uploadId?: number;
+        erro?: string;
+        ignorado?: boolean;
+      };
+    };
+  },
+
+  async reabrirCiclo(
+    contractId: string,
+    servicoId: string,
+    body: { mesReferencia: number; anoReferencia: number },
+  ) {
+    const { data } = await api.post(
+      `/contracts/${contractId}/servicos/${servicoId}/ciclos/reabrir`,
+      body,
+    );
+    return data as {
+      message: string;
+      ciclo: { label: string; dataInicio: string; dataFim: string };
+      uploadIds: number[];
+    };
+  },
+
+  async getKpiExecMetrics(contractId: string, servicoId: string, params?: Record<string, string>) {
+    const { data } = await api.get(
+      `/contracts/${contractId}/servicos/${servicoId}/kpi-exec-metrics`,
+      { params, signal: nextAbortSignal('servico:getKpiExecMetrics') },
+    );
+    return data;
+  },
+
+  async getKpiPreview(contractId: string, servicoId: string, body: unknown) {
+    const { data } = await api.post(
+      `/contracts/${contractId}/servicos/${servicoId}/kpi-preview`,
+      body,
+    );
+    return data;
+  },
+
+  async saveConfigDashboard(contractId: string, servicoId: string, configDashboard: unknown) {
+    const { data } = await api.put(
+      `/contracts/${contractId}/servicos/${servicoId}/config-dashboard`,
+      { configDashboard },
+    );
+    return data;
+  },
+
+  async getConfigFaturamento(contractId: string, servicoId: string) {
+    const { data } = await api.get(
+      `/contracts/${contractId}/servicos/${servicoId}/config-faturamento`,
+    );
+    return data;
+  },
+
+  async saveConfigFaturamento(contractId: string, servicoId: string, configFaturamento: unknown) {
+    const { data } = await api.put(
+      `/contracts/${contractId}/servicos/${servicoId}/config-faturamento`,
+      { configFaturamento },
+    );
+    return data;
+  },
+
+  async aplicarModeloExecutivo(contractId: string, servicoId: string, substituir = false) {
+    const { data } = await api.post(
+      `/contracts/${contractId}/servicos/${servicoId}/aplicar-modelo-executivo`,
+      { substituir },
+    );
+    return data;
+  },
+
+  async getGraficosAgregados(
+    contractId: string,
+    servicoId: string,
+    body: { graficos: unknown[]; filtros?: Record<string, unknown> },
+    signal?: AbortSignal,
+  ) {
+    const { data } = await api.post(
+      `/contracts/${contractId}/servicos/${servicoId}/graficos-agregados`,
+      body,
+      { signal: resolveAbortSignal('servico:getGraficosAgregados', signal) },
+    );
+    return data;
+  },
+
+  async updateColunasTipo(contractId: string, servicoId: string, body: unknown) {
+    const { data } = await api.put(
+      `/contracts/${contractId}/servicos/${servicoId}/colunas/tipo`,
+      body,
+    );
+    return data;
+  },
+
+  async analisarIndicadoresAuto(contractId: string, servicoId: string) {
+    const { data } = await api.post(
+      `/contracts/${contractId}/servicos/${servicoId}/analisar-indicadores-automaticos`,
+    );
+    return data;
+  },
+
+  async confirmarIndicadoresAuto(contractId: string, servicoId: string, body: unknown) {
+    const { data } = await api.post(
+      `/contracts/${contractId}/servicos/${servicoId}/confirmar-indicadores-automaticos`,
+      body,
+    );
+    return data;
+  },
+
+  async getModeloExecutivo(contractId: string, servicoId: string) {
+    const { data } = await api.get(
+      `/contracts/${contractId}/servicos/${servicoId}/modelo-executivo`,
+    );
+    return data;
+  },
+
+  async criarServico(contractId: string, body: unknown) {
+    invalidateCacheExact(chaveServicosContrato(contractId));
+    invalidateCacheExact(chaveSaudeContratos());
+    const { data } = await api.post(`/contracts/${contractId}/servicos`, body);
+    return data;
+  },
+
+  /** Garante Roçada, Capina, Varrição e Poda no contrato (idempotente). */
+  async garantirServicosPadrao(contractId: string) {
+    invalidateCacheExact(chaveServicosContrato(contractId));
+    const { data } = await api.post(`/contracts/${contractId}/servicos/garantir-padrao`);
+    return data as {
+      sucesso: boolean;
+      mensagem: string;
+      criados: Array<{ id: string; nome: string; tipo: string }>;
+      jaExistiam: Array<{ id: string; nome: string; tipo: string }>;
+      servicos: Array<{
+        id: string;
+        nome: string;
+        tipo: string;
+        configFaturamento?: unknown;
+      }>;
+    };
+  },
+
+  /** Apaga os registros de um dia (ciclo aberto) para permitir reenviar a planilha. */
+  async apagarRegistrosDia(contractId: string, servicoId: string, data: string) {
+    invalidateCachesServico(contractId, servicoId);
+    const { data: body } = await api.delete<{
+      sucesso: boolean;
+      data: string;
+      registrosRemovidos: number;
+      mensagem: string;
+    }>(`/contracts/${contractId}/servicos/${servicoId}/dados-dia/${data}`);
+    return body;
+  },
+
+  async excluirServico(contractId: string, servicoId: string) {
+    invalidateCachesServico(contractId, servicoId);
+    const { data } = await api.delete<{
+      message?: string;
+      uploadsRemovidos?: number;
+      registrosRemovidos?: number;
+    }>(`/contracts/${contractId}/servicos/${servicoId}`);
+    return data;
+  },
+};
+
+export default servicoService;
