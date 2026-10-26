@@ -1,5 +1,5 @@
+import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom'
-import type { ReactNode } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ehGestor, homePath } from './utils/homePath'
 import { ToastProvider } from './contexts/ToastContext'
@@ -8,17 +8,26 @@ import ToastContainer from './components/Toast'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
 import Layout from './components/Layout'
-import VisaoGeral from './pages/VisaoGeral'
-import Contratos from './pages/Contratos'
-import ContratoDetalhe from './pages/ContratoDetalhe'
-import ServicoVisao from './pages/ServicoVisao'
-import ServicoDiaDetalhe from './pages/ServicoDiaDetalhe'
-import ConfiguracaoServico from './pages/ConfiguracaoServico'
-import BibliotecaKpisUniversais from './pages/BibliotecaKpisUniversais'
-import DashboardExecutivo from './pages/DashboardExecutivo'
-import BibliotecaGraficosPadrao from './pages/BibliotecaGraficosPadrao'
-
 import './App.css'
+
+const VisaoGeral = lazy(() => import('./pages/VisaoGeral'))
+const Contratos = lazy(() => import('./pages/Contratos'))
+const ContratoDetalhe = lazy(() => import('./pages/ContratoDetalhe'))
+const ServicoVisao = lazy(() => import('./pages/ServicoVisao'))
+const ServicoDiaDetalhe = lazy(() => import('./pages/ServicoDiaDetalhe'))
+const ConfiguracaoServico = lazy(() => import('./pages/ConfiguracaoServico'))
+const BibliotecaKpisUniversais = lazy(() => import('./pages/BibliotecaKpisUniversais'))
+const DashboardExecutivo = lazy(() => import('./pages/DashboardExecutivo'))
+const BibliotecaGraficosPadrao = lazy(() => import('./pages/BibliotecaGraficosPadrao'))
+
+function CarregandoPagina() {
+  return (
+    <div className="loading-screen">
+      <div className="loading-spinner" />
+      <p>Carregando…</p>
+    </div>
+  )
+}
 
 /* ─── Componente de redirecionamento para rotas antigas ─── */
 function RedirectServico() {
@@ -69,6 +78,7 @@ function App() {
         <Router>
           <ToastContainer />
           <BreadcrumbProvider>
+        <Suspense fallback={<CarregandoPagina />}>
         <Routes>
       {/* Escolha de área (Gestor / Contratos) — sem sidebar */}
           <Route path="/" element={<RaizOuAcesso />} />
@@ -198,6 +208,7 @@ function App() {
 
           <Route path="*" element={<HomeRedirect />} />
         </Routes>
+        </Suspense>
           </BreadcrumbProvider>
       </Router>
       </ToastProvider>
