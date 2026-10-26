@@ -118,6 +118,37 @@ export interface ResultadoUpload {
   avisos?: string[]
 }
 
+export interface ConferenciaImportacao {
+  tipo: 'coleta' | 'producao'
+  nome: string
+  periodoInicio: string | null
+  periodoFim: string | null
+  lidas: number
+  importadas: number
+  ignoradas: Array<{ linhaExcel: number; motivo: string }>
+  totaisColeta: {
+    toneladas: number
+    viagens: number
+    kmPorViagem: number
+    pctKmValido: number
+  } | null
+  totaisServico: Array<{
+    nome: string
+    registros: number
+    areaM2: number
+    km: number
+    equipes: number
+  }>
+  alertas: Array<{
+    codigo: 'hodometro' | 'placa' | 'formula_peso' | 'consolidado'
+    texto: string
+    quantidade: number
+    linhas: number[]
+    placa?: string
+  }>
+  mensagem: string
+}
+
 const coletaService = {
   /** Busca dados agregados do dashboard */
   async dashboard(filtros?: { dataInicio?: string; dataFim?: string; regional?: string; distrito?: string; planilhaId?: number }): Promise<DashboardColeta> {
@@ -435,6 +466,19 @@ const coletaService = {
   async relatorioQualidadeServico(servicoId: string) {
     const response = await api.get(`/coleta/qualidade/servico/${servicoId}`)
     return response.data
+  },
+
+  async conferenciaUpload(id: number): Promise<ConferenciaImportacao> {
+    const response = await api.get<ConferenciaImportacao>(`/coleta/uploads/${id}/conferencia`)
+    return response.data
+  },
+
+  async baixarConferencia(id: number): Promise<Blob> {
+    const response = await api.get(`/coleta/uploads/${id}/conferencia`, {
+      params: { formato: 'xlsx' },
+      responseType: 'blob',
+    })
+    return response.data as Blob
   },
 
   /** Exclui um upload de planilha */

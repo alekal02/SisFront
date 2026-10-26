@@ -6,7 +6,8 @@ import { FiDollarSign, FiUpload, FiFileText, FiCheckCircle } from 'react-icons/f
 import { isAxiosError } from 'axios';
 import { useToast } from '../contexts/ToastContext';
 import servicoService from '../services/servicoService';
-import coletaService from '../services/coletaService';
+import coletaService, { type ConferenciaImportacao } from '../services/coletaService';
+import ConferenciaImportacaoPainel from './servico/ConferenciaImportacaoPainel';
 import {
   TIPOS_VALOR_HUB,
   TIPO_VALOR_LABELS,
@@ -127,6 +128,8 @@ export default function ContratoOperacaoUnificada({
   const [uploadPct, setUploadPct] = useState(0);
   const [preview, setPreview] = useState<any>(null);
   const [arquivo, setArquivo] = useState<File | null>(null);
+  const [conferencias, setConferencias] = useState<Array<{ id: number; dados: ConferenciaImportacao }>>([]);
+  const [baixandoId, setBaixandoId] = useState<number | null>(null);
 
   const porTipo = useCallback((tipo: TipoPadrao) => {
     return servicos.find((s) => s.tipo === tipo) || null;
@@ -202,6 +205,22 @@ export default function ContratoOperacaoUnificada({
       if (avisoCiclo) {
         adicionarToast(avisoCiclo, 'warning');
       }
+      const split = (result as { splitPorServico?: Array<{ planilhaUploadId?: number }> }).splitPorServico || [];
+      const ids = [...new Set(
+        [
+          ...split.map((s) => s.planilhaUploadId),
+          (result as { planilhaUploadId?: number }).planilhaUploadId,
+        ].filter((id): id is number => typeof id === 'number' && id > 0),
+      )];
+      const lista: Array<{ id: number; dados: ConferenciaImportacao }> = [];
+      for (const id of ids) {
+        try {
+          lista.push({ id, dados: await coletaService.conferenciaUpload(id) });
+        } catch {
+          /* a conferência do serviço continua no histórico */
+        }
+      }
+      setConferencias(lista);
       onRefresh();
     } catch (err) {
       const msg = isAxiosError(err)
@@ -391,6 +410,34 @@ export default function ContratoOperacaoUnificada({
             </>
           )}
         </div>
+
+        {conferencias.map((item) => (
+          <ConferenciaImportacaoPainel
+            key={item.id}
+            dados={item.dados}
+            baixando={baixandoId === item.id}
+            onBaixar={() => {
+              void (async () => {
+                setBaixandoId(item.id);
+                try {
+                  const blob = await coletaService.baixarConferencia(item.id);
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `conferencia-${item.id}.xlsx`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  window.URL.revokeObjectURL(url);
+                } catch {
+                  adicionarToast('Não foi possível baixar a conferência', 'error');
+                } finally {
+                  setBaixandoId(null);
+                }
+              })();
+            }}
+          />
+        ))}
 
         {arquivo && (
           <div className="contrato-hub-arquivo">

@@ -14,6 +14,8 @@ import QualidadePlanilhaPreview from '../QualidadePlanilhaPreview';
 import { TIPOS_SERVICO_LABELS } from '../../types';
 import { gerarNomePdfArquivo, labelTipoServicoArquivo, formatarDataArquivoPdf } from '../../utils/gerarNomePdf';
 import type { EtapasStatus, PlanilhaItem, ConferenciaDiaria, ResumoImportacao, EtapaMiniFlow } from './servicoTypes';
+import ConferenciaImportacaoPainel from './ConferenciaImportacaoPainel';
+import type { ConferenciaImportacao } from '../../services/coletaService';
 import { labelModeloRocada, MODELOS_ROCADA_OPCOES } from './servicoUtils';
 
 export interface ServicoUploadTabProps {
@@ -65,9 +67,49 @@ const ServicoUploadTab = memo(function ServicoUploadTab({
   const [conferindoDiaria, setConferindoDiaria] = useState(false);
   const [conferenciaDiaria, setConferenciaDiaria] = useState<ConferenciaDiaria | null>(null);
   const [resumoImportacao, setResumoImportacao] = useState<ResumoImportacao | null>(null);
+  const [conferenciaResultado, setConferenciaResultado] = useState<ConferenciaImportacao | null>(null);
+  const [conferenciaResultadoId, setConferenciaResultadoId] = useState<number | null>(null);
+  const [conferenciasHistorico, setConferenciasHistorico] = useState<Record<number, ConferenciaImportacao>>({});
+  const [historicoAbertoId, setHistoricoAbertoId] = useState<number | null>(null);
+  const [baixandoConferenciaId, setBaixandoConferenciaId] = useState<number | null>(null);
   const [modeloRocadaUi, setModeloRocadaUi] = useState<{ modelo: string; label: string } | null>(null);
   const validacaoInputRef = useRef<HTMLInputElement>(null);
 
+
+  const baixarConferencia = async (id: number) => {
+    setBaixandoConferenciaId(id);
+    try {
+      const blob = await coletaService.baixarConferencia(id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `conferencia-${id}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      adicionarToast('Não foi possível baixar a conferência', 'error');
+    } finally {
+      setBaixandoConferenciaId(null);
+    }
+  };
+
+  const abrirConferenciaHistorico = async (id: number) => {
+    if (historicoAbertoId === id) {
+      setHistoricoAbertoId(null);
+      return;
+    }
+    setHistoricoAbertoId(id);
+    if (conferenciasHistorico[id]) return;
+    try {
+      const dados = await coletaService.conferenciaUpload(id);
+      setConferenciasHistorico((prev) => ({ ...prev, [id]: dados }));
+    } catch {
+      adicionarToast('Não foi possível carregar a conferência', 'error');
+      setHistoricoAbertoId(null);
+    }
+  };
 
   const importarPlanilhaValidada = async (
     file: File,
@@ -136,6 +178,16 @@ const ServicoUploadTab = memo(function ServicoUploadTab({
           modeloRocadaLabel: modoUnificado ? labelUnificado : modeloRocadaLabel,
           areaTotalM2,
         });
+        const split = (data as { splitPorServico?: Array<{ servicoId: string; planilhaUploadId?: number }> }).splitPorServico;
+        const uploadId = split?.find((s) => s.servicoId === servicoId)?.planilhaUploadId || data.planilhaUploadId;
+        if (uploadId) {
+          setConferenciaResultadoId(uploadId);
+          try {
+            setConferenciaResultado(await coletaService.conferenciaUpload(uploadId));
+          } catch {
+            setConferenciaResultado(null);
+          }
+        }
         setImportacaoConcluida(true);
         onSetStatus(prev => ({ ...prev, upload: 'done', revisao: 'done' }));
         // Roçada / unificado: permanece no Upload para o usuário ver o resumo
@@ -1014,6 +1066,14 @@ const ServicoUploadTab = memo(function ServicoUploadTab({
             </div>
           )}
 
+          {importacaoConcluida && conferenciaResultado && conferenciaResultadoId && (
+            <ConferenciaImportacaoPainel
+              dados={conferenciaResultado}
+              baixando={baixandoConferenciaId === conferenciaResultadoId}
+              onBaixar={() => { void baixarConferencia(conferenciaResultadoId); }}
+            />
+          )}
+
           {/* ─── Análise Viagem por Viagem (somente coleta) ─── */}
           {!ehRocada && !validando && validacaoData && validacaoData.sucesso && (
             <div style={{
@@ -1591,7 +1651,8 @@ const ServicoUploadTab = memo(function ServicoUploadTab({
                 : 'Planilhas'}
             </p>
             {planilhas.map(p => (
-              <div key={p.id} className="planilha-item">
+              <div key={p.id}>
+              <div className="planilha-item">
                 <FiFileText size={14} className="planilha-icon" />
                 <div className="planilha-info">
                   <div className="planilha-nome">
@@ -1602,6 +1663,20 @@ const ServicoUploadTab = memo(function ServicoUploadTab({
                   <div className="planilha-data">{new Date(p.criadoEm).toLocaleDateString('pt-BR')} &bull; {p.linhasImportadas}/{p.totalLinhas} linhas</div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    className="planilha-qualidade"
+                    onClick={() => { void abrirConferenciaHistorico(p.id); }}
+                    title="Ver conferência da importação"
+                    style={{
+                      background: 'none', border: '1px solid #99f6e4', borderRadius: '4px',
+                      padding: '0.2rem 0.35rem', cursor: 'pointer', color: '#0f766e',
+                      fontSize: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.15rem',
+                      fontWeight: 700,
+                    }}
+                  >
+                    <FiCheckCircle size={9} /> Conferência
+                  </button>
                   <button
                     className="planilha-qualidade"
                     onClick={() => { setQualidadeUploadId(p.id); setQualidadeAberta(true); }}
@@ -1625,6 +1700,14 @@ const ServicoUploadTab = memo(function ServicoUploadTab({
                     {excluindoPlanilhaId === p.id ? <FiRefreshCw size={12} className="spin" /> : <FiTrash2 size={12} />}
                   </button>
                 </div>
+              </div>
+              {historicoAbertoId === p.id && conferenciasHistorico[p.id] && (
+                <ConferenciaImportacaoPainel
+                  dados={conferenciasHistorico[p.id]}
+                  baixando={baixandoConferenciaId === p.id}
+                  onBaixar={() => { void baixarConferencia(p.id); }}
+                />
+              )}
               </div>
             ))}
           </div>
