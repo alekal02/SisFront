@@ -250,6 +250,9 @@ const DashboardTabela = memo(function DashboardTabela({
                 <div className="analise-card">
                   <div className="label">KM Médio por Viagem</div>
                   <div className="value">{ao.kmMedioViagem.atual.toFixed(1)} km</div>
+                  {ao.kmMedioViagem.pctViagensKmValido != null && (
+                    <div className="label">{ao.kmMedioViagem.pctViagensKmValido}% das viagens com KM válido</div>
+                  )}
                   <VariacaoBadge
                     variacao={ao.kmMedioViagem.variacao}
                     tooltip={tooltipComparacaoVariacao(ao.kmMedioViagem.variacao, comparacaoAnterior, 'planilha')}

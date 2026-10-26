@@ -88,6 +88,7 @@ export interface KmMedioViagem {
   atual: number
   anterior: number
   variacao: Variacao
+  pctViagensKmValido?: number
 }
 
 export interface HorasMedias {
