@@ -3,9 +3,7 @@
  * exibe a métrica principal (m², km, m linear, árvores, pontos vs coleta).
  * O valor oficial vem de metricaOficialServico (@sistemma/shared).
  */
-import { metricaDeRegistro, metricaOficialServico, type CamposMetricaServico } from '@sistemma/shared';
-
-export { metricaDeRegistro, metricaOficialServico };
+import { metricaOficialServico, type CamposMetricaServico } from '@sistemma/shared';
 
 export type ModoMetricaServico =
   | 'coleta'

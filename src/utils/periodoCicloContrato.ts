@@ -1,28 +1,3 @@
-export {
-  type PeriodoCicloContrato,
-  type PeriodoContratoQuery,
-  type QuinzenaPeriodo,
-  type PeriodoRecortadoCiclo,
-  type JanelasComparativoCiclo,
-  normalizarDiaInicioCiclo,
-  inferirMesReferenciaAtual,
-  inferirMesReferenciaDeData,
-  inferirCicloReferenciaDeDatas,
-  calcularCicloMensalContrato,
-  deslocarMesReferencia,
-  limitarDiasAusentesAoPeriodoDaPlanilha,
-  mesInputParaReferencia,
-  referenciaParaMesInput,
-  listarDatasIntervalo,
-  calcularQuinzenasDoPeriodo,
-  isIsoDate,
-  formatarDataBr,
-  isoHojeLocal,
-  recortarPeriodoAteReferencia,
-  primeirosNDiasPeriodo,
-  montarJanelasComparativoCiclo,
-} from '@sistemma/shared';
-
 import {
   calcularCicloMensalContrato,
   calcularQuinzenasDoPeriodo,

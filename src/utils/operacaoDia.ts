@@ -8,7 +8,7 @@ import {
 } from './viagemCardDados';
 import { contarViagensPorRotaRegistro } from './viagensPorRota';
 import { fmtNum } from './relatorioDiario';
-import { normalizarPlaca } from './normalizarPlaca';
+import { normalizarPlaca } from '@sistemma/shared';
 import { ehPlacaReserva } from './placasReserva';
 import {
   LABEL_TIPO_CAMINHAO,

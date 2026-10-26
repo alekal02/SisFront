@@ -7,7 +7,7 @@ import {
   referenciaParaMesInput,
   mesInputParaReferencia,
   type PeriodoCicloContrato,
-} from '../utils/periodoCicloContrato';
+} from '@sistemma/shared';
 
 interface ExecutivoCicloSelectorProps {
   diaInicioCiclo: number;

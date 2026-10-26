@@ -18,18 +18,20 @@ import AnalisePesoPainel from './AnalisePesoPainel';
 import {
   normalizarDiaInicioCiclo,
   calcularCicloMensalContrato,
-  periodoPadraoContrato,
-  buildPeriodosPorContratoQuery,
   mesInputParaReferencia,
   referenciaParaMesInput,
   inferirMesReferenciaAtual,
   deslocarMesReferencia,
+  calcularQuinzenasDoPeriodo,
+  recortarPeriodoAteReferencia,
+} from '@sistemma/shared';
+import {
+  periodoPadraoContrato,
+  buildPeriodosPorContratoQuery,
   salvarPeriodosComparar,
   carregarPeriodosComparar,
   aplicarQuinzenaAoPeriodo,
-  calcularQuinzenasDoPeriodo,
   aplicarCicloAnteriorAoPeriodo,
-  recortarPeriodoAteReferencia,
   type PeriodoContratoState,
 } from '../utils/periodoCicloContrato';
 

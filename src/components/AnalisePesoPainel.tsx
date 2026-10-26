@@ -11,7 +11,7 @@ import {
   formatarCelulaMetricaPeso,
   type LinhaMetricaPeso,
   type SecaoPeso,
-} from '../utils/analisePesoComparativoMetricas';
+} from '@sistemma/shared';
 import { gerarHtmlAnalisePesoComparativo } from '../utils/gerarHtmlAnalisePesoComparativo';
 import { gerarHtmlRelatorioMelhoriaCicloPeso } from '../utils/gerarHtmlRelatorioMelhoriaCicloPeso';
 import {

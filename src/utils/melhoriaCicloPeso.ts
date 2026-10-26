@@ -1,14 +1,12 @@
 import type { AnalisePesoColeta, CompararPorTipoServico } from '../services/servicoService';
 import {
+  alinharPorOcorrenciaDiaSemana,
   calcularViagensEquivalentesResultado,
   fmtNumPeso,
-} from './analisePesoComparativoMetricas';
-import { recortarPeriodoAteReferencia } from './periodoCicloContrato';
-import { toneladasDoPesoKg } from '@sistemma/shared';
-import {
-  alinharPorOcorrenciaDiaSemana,
+  recortarPeriodoAteReferencia,
+  toneladasDoPesoKg,
   type ParDiaSemanaCiclo,
-} from './melhoriaCicloOperacao';
+} from '@sistemma/shared';
 
 export interface ResumoMelhoriaCiclo {
   servico: CompararPorTipoServico;

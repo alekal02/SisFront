@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { rotuloOcorrenciaDiaSemana } from '@sistemma/shared';
 import {
   alinharDiasCicloOperacao,
-  rotuloOcorrenciaDiaSemana,
 } from './melhoriaCicloOperacao';
 import type { DadoDiario } from './relatorioDiario';
 

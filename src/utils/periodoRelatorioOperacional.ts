@@ -1,7 +1,7 @@
 /**
  * Cálculo de períodos semanal e quinzenal para relatório operacional.
  */
-import { listarDatasIntervalo, recortarPeriodoAteReferencia } from './periodoCicloContrato';
+import { listarDatasIntervalo, recortarPeriodoAteReferencia } from '@sistemma/shared';
 import { formatarIsoParaBr } from './periodoDados';
 import { detectarColunasCardViagem, extrairMetricasCardViagem } from './viagemCardDados';
 import { normalizarDataParaIso } from './normalizarDataIso';

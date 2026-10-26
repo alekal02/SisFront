@@ -21,7 +21,7 @@ import {
 } from './limitesCaminhaoContrato';
 import { obterValorRegistro } from './viagemCardDados';
 import { extrairPesosViagemKgSeguros } from './viagensPorRota';
-import { normalizarPlaca } from './normalizarPlaca';
+import { normalizarPlaca } from '@sistemma/shared';
 import { fmtNum } from './relatorioDiario';
 
 export type SeveridadeGargaloViagem = 'critico' | 'atencao' | 'info';

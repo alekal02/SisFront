@@ -20,7 +20,7 @@ import type {
   MetricaEvolucaoId,
   SerieEvolucaoOperacional,
 } from '../services/servicoService';
-import { listarDatasIntervalo } from '../utils/periodoCicloContrato';
+import { listarDatasIntervalo } from '@sistemma/shared';
 
 const JANELAS = [
   { valor: 7, label: 'Última semana' },

@@ -16,7 +16,7 @@ import type { ColunaDetectada } from '../components/KpiEditor/KpiEditorTypes';
 import { extrairPlacasReservaContrato } from '../utils/placasReserva';
 import type { MapaLimiteCaminhao } from '../utils/limitesCaminhaoContrato';
 import { ehServicoPorUnidade } from '../utils/unidadeServico';
-import type { PeriodoCicloContrato } from '../utils/periodoCicloContrato';
+import type { PeriodoCicloContrato } from '@sistemma/shared';
 import servicoService from '../services/servicoService';
 import contractService from '../services/contractService';
 

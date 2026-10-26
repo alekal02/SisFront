@@ -33,9 +33,11 @@ import {
   inferirMesReferenciaAtual,
   inferirMesReferenciaDeData,
   montarJanelasComparativoCiclo,
+  montarProjecaoCiclo,
   recortarPeriodoAteReferencia,
   type PeriodoCicloContrato,
-} from '../utils/periodoCicloContrato';
+  type TotaisCicloProjecao,
+} from '@sistemma/shared';
 import { agruparCicloPorDiaFromApi, fmtNum, type DadoDiario } from '../utils/relatorioDiario';
 import {
   formatarMetricaUnidade,
@@ -51,7 +53,6 @@ import {
 } from '../utils/gerarNomePdf';
 import servicoService, { type FichaRotasCicloResponse } from '../services/servicoService';
 import ProjecaoCicloPainel from './ProjecaoCicloPainel';
-import { montarProjecaoCiclo, type TotaisCicloProjecao } from '@sistemma/shared';
 
 type ExportandoPdf = TipoPeriodoOperacional | 'hodometro' | 'melhoria' | null;
 type PdfRelatorioId = 'melhoria' | 'ciclo' | 'ciclo_gerencial' | 'semanal' | 'quinzenal' | 'hodometro';

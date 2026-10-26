@@ -6,7 +6,7 @@ import {
   avisoTipoCaminhaoDeduzido,
   formatarCelulaMetricaPeso,
   type SecaoPeso,
-} from './analisePesoComparativoMetricas';
+} from '@sistemma/shared';
 import { formatarDataArquivoPdf } from './gerarNomePdf';
 
 function esc(s: string): string {

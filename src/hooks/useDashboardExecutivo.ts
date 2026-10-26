@@ -3,7 +3,7 @@ import { useToast } from '../contexts/ToastContext';
 import dashboardExecutivoService from '../services/dashboardExecutivoService';
 import type { DashboardExecutivoResponse, FiltrosExecutivo } from '../services/dashboardExecutivoService';
 import { useGoogleFilters } from '../hooks/useGoogleFilters';
-import { calcularCicloMensalContrato, inferirMesReferenciaAtual } from '../utils/periodoCicloContrato';
+import { calcularCicloMensalContrato, inferirMesReferenciaAtual } from '@sistemma/shared';
 import {
   carregarLayoutExecutivo,
   salvarLayoutExecutivo,

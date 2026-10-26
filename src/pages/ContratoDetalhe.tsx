@@ -34,15 +34,18 @@ import type { TipoServico } from '../types';
 import contractService from '../services/contractService';
 import servicoService from '../services/servicoService';
 import pdfService from '../services/pdfService';
-import { metricaOficialServico } from '@sistemma/shared';
-import { gerarHtmlRelatorioCicloConsolidado } from '../utils/gerarHtmlRelatorioCicloConsolidado';
-import { gerarNomePdfRelatorioCicloConsolidado } from '../utils/gerarNomePdf';
 import {
   calcularCicloMensalContrato,
+  DENSIDADE_RESIDUO_PADRAO,
   inferirMesReferenciaAtual,
+  metricaOficialServico,
   normalizarDiaInicioCiclo,
+  normalizarPlaca,
+  parseDensidadeResiduoInput,
   recortarPeriodoAteReferencia,
-} from '../utils/periodoCicloContrato';
+} from '@sistemma/shared';
+import { gerarHtmlRelatorioCicloConsolidado } from '../utils/gerarHtmlRelatorioCicloConsolidado';
+import { gerarNomePdfRelatorioCicloConsolidado } from '../utils/gerarNomePdf';
 
 const ORDEM_TIPOS_PADRAO = [
   'coleta_caminhao',
@@ -129,7 +132,6 @@ import {
   parseListaNomesTexto,
   parseListaPlacasTexto,
 } from '../utils/configOperacional';
-import { DENSIDADE_RESIDUO_PADRAO, parseDensidadeResiduoInput } from '../utils/analisePesoComparativoMetricas';
 import {
   TIPOS_LIMITE_CAMINHAO,
   LABEL_TIPO_CAMINHAO,
@@ -145,7 +147,6 @@ import {
   resolverDensidadeResiduoKgL,
   type TipoLimiteCaminhao,
 } from '../utils/limitesCaminhaoContrato';
-import { normalizarPlaca } from '../utils/normalizarPlaca';
 import '../styles/FluxoUnificado.css';
 import '../styles/ContratoDetalhe.css';
 

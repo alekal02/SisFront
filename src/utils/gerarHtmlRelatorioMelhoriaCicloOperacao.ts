@@ -2,7 +2,7 @@
  * Relatório gerencial: melhoria do ciclo de operação (ciclo anterior × ciclo atual).
  * Linguagem e layout pensados para apresentação a gerentes de contrato.
  */
-import type { PeriodoCicloContrato } from './periodoCicloContrato';
+import { rotuloOcorrenciaDiaSemana, type PeriodoCicloContrato } from '@sistemma/shared';
 import { formatarIsoParaBr } from './periodoDados';
 import { fmtNum, type DadoDiario } from './relatorioDiario';
 import { formatarDataArquivoPdf } from './gerarNomePdf';
@@ -12,7 +12,6 @@ import {
   diaTemProducao,
   montarLeituraGerencial,
   resumirCicloOperacao,
-  rotuloOcorrenciaDiaSemana,
   variacaoAbsPct,
   type ModoMelhoriaOperacao,
   type TotaisMelhoriaCiclo,

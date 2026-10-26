@@ -1,4 +1,4 @@
-import { normalizarPlaca } from './normalizarPlaca';
+import { normalizarPlaca } from '@sistemma/shared';
 
 /** Limites de peso/volume por tipo — alinhados ao backend pesoMaximoCaminhao.ts */
 

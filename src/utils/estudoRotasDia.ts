@@ -11,7 +11,7 @@ import {
 } from './viagemCardDados';
 import { contarViagensPorRotaRegistro, extrairPesosViagemKgSeguros } from './viagensPorRota';
 import { fmtNum } from './relatorioDiario';
-import { normalizarPlaca } from './normalizarPlaca';
+import { normalizarPlaca } from '@sistemma/shared';
 import {
   LABEL_TIPO_CAMINHAO,
   PCT_IDEAL_ATENCAO,

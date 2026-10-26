@@ -7,7 +7,7 @@ import ExecutivoCicloSelector from '../ExecutivoCicloSelector';
 import GoogleFilterBar from '../GoogleFilterBar';
 import {
   inferirMesReferenciaAtual,
-} from '../../utils/periodoCicloContrato';
+} from '@sistemma/shared';
 import {
   STORAGE_EXECUTIVO_CONTRATO,
   STORAGE_EXECUTIVO_SERVICO,

@@ -16,7 +16,6 @@ import CompararPorTipo from './CompararPorTipo';
 import EvolucaoDiariaTv from './EvolucaoDiariaTv';
 import EvolucaoDiariaErrorBoundary from './EvolucaoDiariaErrorBoundary';
 import {
-  buildPeriodosPorContratoQuery,
   calcularCicloMensalContrato,
   deslocarMesReferencia,
   inferirMesReferenciaAtual,
@@ -24,9 +23,14 @@ import {
   mesInputParaReferencia,
   normalizarDiaInicioCiclo,
   referenciaParaMesInput,
+  fmtIntPeso,
+  fmtNumPeso,
+  fmtPctPeso,
+} from '@sistemma/shared';
+import {
+  buildPeriodosPorContratoQuery,
   type PeriodoContratoState,
 } from '../utils/periodoCicloContrato';
-import { fmtIntPeso, fmtNumPeso, fmtPctPeso } from '../utils/analisePesoComparativoMetricas';
 
 const POLL_MS = 60_000;
 const GRAFICO_POLL_MS = 5 * 60_000;

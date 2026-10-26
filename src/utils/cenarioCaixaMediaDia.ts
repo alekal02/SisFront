@@ -16,7 +16,7 @@ import {
   type MapaLimiteCaminhao,
   type TipoLimiteCaminhao,
 } from './limitesCaminhaoContrato';
-import { normalizarPlaca } from './normalizarPlaca';
+import { normalizarPlaca } from '@sistemma/shared';
 import type { OperacaoDiaAnalise } from './operacaoDia';
 import { fmtNum } from './relatorioDiario';
 import { obterValorRegistro } from './viagemCardDados';

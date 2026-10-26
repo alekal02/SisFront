@@ -4,14 +4,6 @@ import { formatarMetricaUnidade } from './unidadeServico';
 
 import { alinharPorOcorrenciaDiaSemana, rotuloOcorrenciaDiaSemana } from '@sistemma/shared';
 
-export {
-  DIAS_SEMANA_CURTO,
-  diaSemanaIso,
-  rotuloOcorrenciaDiaSemana,
-  alinharPorOcorrenciaDiaSemana,
-} from '@sistemma/shared';
-export type { ParDiaSemanaCiclo } from '@sistemma/shared';
-
 export type ModoMelhoriaOperacao = 'coleta' | 'unidade';
 
 export interface TotaisMelhoriaCiclo {

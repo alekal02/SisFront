@@ -1,4 +1,4 @@
-import { normalizarPlaca } from './normalizarPlaca';
+import { normalizarPlaca } from '@sistemma/shared';
 import type { ConfigOperacionalContrato } from './placasReserva';
 
 export type { ConfigOperacionalContrato };

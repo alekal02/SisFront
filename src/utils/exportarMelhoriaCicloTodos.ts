@@ -4,7 +4,7 @@ import {
   inferirMesReferenciaAtual,
   inferirMesReferenciaDeData,
   montarJanelasComparativoCiclo,
-} from './periodoCicloContrato';
+} from '@sistemma/shared';
 import { agruparCicloPorDiaFromApi } from './relatorioDiario';
 import { unidadeOperacionalDoTipo } from './unidadeServico';
 import { resumirCicloOperacao, type ModoMelhoriaOperacao } from './melhoriaCicloOperacao';

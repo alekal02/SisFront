@@ -6,9 +6,7 @@
 import { detectarColunasCardViagem, extrairMetricasCardViagem } from './viagemCardDados';
 import { contarViagensPorRotaRegistro } from './viagensPorRota';
 import { normalizarDataParaIso } from './normalizarDataIso';
-import { metricaOficialServico, toneladasDoPesoKg } from '@sistemma/shared';
-
-export { toneladasDoPesoKg } from '@sistemma/shared';
+import { listarDatasIntervalo, metricaOficialServico, toneladasDoPesoKg } from '@sistemma/shared';
 
 export interface DadoDiario {
   /** Data no formato yyyy-MM-dd */
@@ -195,8 +193,6 @@ function criarVazio(label: string): DadoDiario {
     receitaHora: 0,
   };
 }
-
-import { listarDatasIntervalo } from './periodoCicloContrato';
 
 function criarDiaVazio(data: string): DadoDiario {
   const [, mes, dia] = data.split('-');

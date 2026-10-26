@@ -6,7 +6,7 @@
  * 2. Reanálise das leituras de hodômetro (saída base = chegada base, quebra, salto)
  * 3. Fallback: KM zerado/ausente com peso válido
  */
-import { normalizarPlaca } from './normalizarPlaca';
+import { normalizarPlaca } from '@sistemma/shared';
 import { contarViagensPorRotaRegistro } from './viagensPorRota';
 import { normalizarDataParaIso } from './normalizarDataIso';
 

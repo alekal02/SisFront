@@ -1,4 +1,4 @@
-import { normalizarPlaca } from './normalizarPlaca';
+import { normalizarPlaca } from '@sistemma/shared';
 
 export interface ConfigOperacionalContrato {
   placasReserva?: string[];

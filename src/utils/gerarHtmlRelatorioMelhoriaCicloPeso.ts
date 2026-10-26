@@ -1,8 +1,12 @@
-import { toneladasDoPesoKg } from '@sistemma/shared';
+import {
+  CORES_SERVICO_PESO,
+  fmtIntPeso,
+  fmtNumPeso,
+  rotuloOcorrenciaDiaSemana,
+  toneladasDoPesoKg,
+} from '@sistemma/shared';
 import type { CompararPorTipoServico } from '../services/servicoService';
-import { CORES_SERVICO_PESO, fmtIntPeso, fmtNumPeso } from './analisePesoComparativoMetricas';
 import { formatarDataArquivoPdf } from './gerarNomePdf';
-import { rotuloOcorrenciaDiaSemana } from './melhoriaCicloOperacao';
 import {
   alinharDiasCicloAnteriorAtual,
   montarMelhoriaCicloAnteriorAtual,
