@@ -5,6 +5,7 @@ import {
   FiAlertTriangle, FiClock, FiRefreshCw, FiDownload,
 } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
+import { erroEncerraSessao } from '../services/api';
 import { ehGestor, ROTA_ACESSO } from '../utils/homePath';
 import { useToast } from '../contexts/ToastContext';
 import contractService, { type ContratoSaude } from '../services/contractService';
@@ -77,6 +78,7 @@ export default function Contratos() {
       }
       navigate('/contratos/' + id);
     } catch (error: unknown) {
+      if (erroEncerraSessao(error)) return;
       const msg = (error as { response?: { data?: { error?: string } } })?.response?.data?.error;
       adicionarToast(msg || 'Erro ao abrir contrato', 'error');
     }

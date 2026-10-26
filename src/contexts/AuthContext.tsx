@@ -5,7 +5,7 @@
    ============================================ */
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import axios from 'axios'
-import api, { limparSessaoLocal, renovarToken } from '../services/api'
+import api, { erroEncerraSessao, limparSessaoLocal, renovarToken } from '../services/api'
 import { migrarStorageLegado, STORAGE_REFRESH, STORAGE_TOKEN, STORAGE_USER } from '../utils/storage'
 
 migrarStorageLegado()
@@ -19,12 +19,8 @@ interface AuthContextType {
   user: UserData | null
   /** Token JWT atual */
   token: string | null
-  /** Se está carregando o auto-login */
+  /** Se está restaurando a sessão salva */
   loading: boolean
-  /** Falha ao abrir o gestor sem senha */
-  erroAcesso: string | null
-  /** Abre de novo a sessão do gestor */
-  entrarDireto: () => Promise<void>
   /** Fazer login com email + senha */
   login: (email: string, senha: string) => Promise<UserData>
   /** Super-admin entra no banco de um contrato */
@@ -65,7 +61,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [erroAcesso, setErroAcesso] = useState<string | null>(null)
 
   const limparSessao = () => {
     limparSessaoLocal()
@@ -73,28 +68,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
-  const entrarDireto = async () => {
-    const response = await api.post<AuthResponse>('/auth/acesso-direto')
-    const { token: newToken, refreshToken, user: userData } = response.data
-    gravarSessao(newToken, userData, refreshToken)
-    setToken(newToken)
-    setUser(userData)
-    setErroAcesso(null)
-  }
-
   /* ── Restaura sessão e valida token no backend ── */
   useEffect(() => {
     const storedToken = localStorage.getItem(STORAGE_TOKEN)
       || localStorage.getItem('@abastecimento:token')
     if (!storedToken) {
-      void entrarDireto()
-        .catch((err) => {
-          const msg = axios.isAxiosError(err)
-            ? (err.response?.data as { error?: string } | undefined)?.error
-            : null
-          setErroAcesso(msg || 'Não foi possível abrir o gestor.')
-        })
-        .finally(() => setLoading(false))
+      setLoading(false)
       return
     }
 
@@ -106,13 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(localStorage.getItem(STORAGE_TOKEN) || storedToken)
         setUser(data.user)
       } catch (err) {
-        if (axios.isAxiosError(err) && err.response?.status === 401) {
+        const status = axios.isAxiosError(err) ? err.response?.status : 0
+        if (status === 401 || status === 404) {
           limparSessao()
-          try {
-            await entrarDireto()
-          } catch {
-            setErroAcesso('A sessão expirou e não foi possível reabrir o gestor.')
-          }
           return
         }
         // Rede/backend fora: mantém a sessão da TV até o logout manual
@@ -160,19 +135,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const entrarContrato = async (contractId: string) => {
-    const response = await api.post<AuthResponse>('/auth/entrar-contrato', { contractId })
-    const { token: newToken, refreshToken, user: userData } = response.data
-    gravarSessao(newToken, userData, refreshToken)
-    setToken(newToken)
-    setUser(userData)
+    try {
+      const response = await api.post<AuthResponse>('/auth/entrar-contrato', { contractId })
+      const { token: newToken, refreshToken, user: userData } = response.data
+      gravarSessao(newToken, userData, refreshToken)
+      setToken(newToken)
+      setUser(userData)
+    } catch (error) {
+      if (erroEncerraSessao(error)) limparSessao()
+      throw error
+    }
   }
 
   const sairContrato = async () => {
-    const response = await api.post<AuthResponse>('/auth/sair-contrato')
-    const { token: newToken, refreshToken, user: userData } = response.data
-    gravarSessao(newToken, userData, refreshToken)
-    setToken(newToken)
-    setUser(userData)
+    try {
+      const response = await api.post<AuthResponse>('/auth/sair-contrato')
+      const { token: newToken, refreshToken, user: userData } = response.data
+      gravarSessao(newToken, userData, refreshToken)
+      setToken(newToken)
+      setUser(userData)
+    } catch (error) {
+      if (erroEncerraSessao(error)) limparSessao()
+      throw error
+    }
   }
 
   /* ── Logout ── */
@@ -185,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      user, token, loading, erroAcesso, entrarDireto, login, entrarContrato, sairContrato, logout, isAdmin, isSuperadmin,
+      user, token, loading, login, entrarContrato, sairContrato, logout, isAdmin, isSuperadmin,
     }}>
       {children}
     </AuthContext.Provider>

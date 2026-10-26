@@ -12,7 +12,7 @@ import { useBreadcrumbs } from '../contexts/BreadcrumbContext';
 import servicoService from '../services/servicoService';
 import contractService from '../services/contractService';
 import { isRequestAborted } from '../services/abortableRequest';
-import api from '../services/api';
+import api, { erroEncerraSessao } from '../services/api';
 import type { ServicoConsolidado, KpiConsolidadoItem } from '../services/servicoService';
 import CompararPorTipoTv from '../components/CompararPorTipoTv';
 import PainelGestor from './PainelGestor';
@@ -271,7 +271,8 @@ function VisaoGeralOperacional() {
     if (ehGestor(user) && user?.contractId !== contratoId) {
       try {
         await entrarContrato(contratoId);
-      } catch {
+      } catch (error) {
+        if (erroEncerraSessao(error)) return;
         /* banco único: segue para a unidade mesmo assim */
       }
     }

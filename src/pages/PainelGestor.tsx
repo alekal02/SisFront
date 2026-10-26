@@ -4,6 +4,7 @@ import WhatsappGrupos from './WhatsappGrupos';
 import Contratos from './Contratos';
 import { FiAlertCircle, FiRefreshCw } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
+import { erroEncerraSessao } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import { useBreadcrumbs } from '../contexts/BreadcrumbContext';
 import { ehGestor } from '../utils/homePath';
@@ -120,7 +121,8 @@ export default function PainelGestor() {
     if (ehGestor(user) && user?.contractId !== contratoId) {
       try {
         await entrarContrato(contratoId);
-      } catch {
+      } catch (error) {
+        if (erroEncerraSessao(error)) return;
         /* banco único: segue para a unidade */
       }
     }

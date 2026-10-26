@@ -19,6 +19,7 @@ const ConfiguracaoServico = lazy(() => import('./pages/ConfiguracaoServico'))
 const BibliotecaKpisUniversais = lazy(() => import('./pages/BibliotecaKpisUniversais'))
 const DashboardExecutivo = lazy(() => import('./pages/DashboardExecutivo'))
 const BibliotecaGraficosPadrao = lazy(() => import('./pages/BibliotecaGraficosPadrao'))
+const Login = lazy(() => import('./pages/Login'))
 
 function CarregandoPagina() {
   return (
@@ -37,7 +38,7 @@ function RedirectServico() {
 
 function HomeRedirect() {
   const { user, loading } = useAuth()
-  if (loading) return null
+  if (loading) return <CarregandoPagina />
   return <Navigate to={homePath(user)} replace />
 }
 
@@ -45,30 +46,6 @@ function GestorOnlyRoute({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   if (!ehGestor(user) || user?.contractId) return <Navigate to={homePath(user)} replace />
   return <>{children}</>
-}
-
-/** Abre direto na área do gestor. A tela de senha não aparece mais. */
-function RaizOuAcesso() {
-  const { user, loading, erroAcesso, entrarDireto } = useAuth()
-  if (loading) {
-    return (
-      <div className="loading-screen">
-        <div className="loading-spinner" />
-        <p>Abrindo o gestor…</p>
-      </div>
-    )
-  }
-  if (!user) {
-    return (
-      <div className="loading-screen">
-        <p>{erroAcesso || 'Não foi possível abrir o gestor.'}</p>
-        <button type="button" className="btn btn-primary" onClick={() => { void entrarDireto() }}>
-          Tentar de novo
-        </button>
-      </div>
-    )
-  }
-  return <Navigate to="/visao-geral?aba=contratos" replace />
 }
 
 function App() {
@@ -80,11 +57,9 @@ function App() {
           <BreadcrumbProvider>
         <Suspense fallback={<CarregandoPagina />}>
         <Routes>
-      {/* Escolha de área (Gestor / Contratos) — sem sidebar */}
-          <Route path="/" element={<RaizOuAcesso />} />
-          <Route path="/acesso" element={<Navigate to="/" replace />} />
-          {/* Link antigo de quando existia tela de login */}
-          <Route path="/login" element={<Navigate to="/" replace />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<HomeRedirect />} />
+          <Route path="/acesso" element={<Navigate to="/login" replace />} />
 
       {/* Rotas protegidas com Layout (sidebar + logout) */}
           <Route

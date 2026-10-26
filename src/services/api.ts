@@ -3,6 +3,7 @@
    ============================================ */
 import axios, { type InternalAxiosRequestConfig } from 'axios'
 import { migrarStorageLegado, STORAGE_REFRESH, STORAGE_TOKEN, STORAGE_USER } from '../utils/storage'
+import { deveEncerrarSessao } from '../utils/sessaoHttp'
 
 migrarStorageLegado()
 
@@ -32,6 +33,31 @@ export function limparSessaoLocal() {
   localStorage.removeItem('@abastecimento:user')
 }
 
+function mensagemResposta(data: unknown): string | undefined {
+  if (data && typeof data === 'object' && 'error' in data) {
+    const texto = (data as { error?: unknown }).error
+    if (typeof texto === 'string') return texto
+  }
+  return undefined
+}
+
+/** Token antigo ou usuário que sumiu do banco: limpa a sessão e volta ao login. */
+export function erroEncerraSessao(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false
+  return deveEncerrarSessao(
+    error.response?.status,
+    String(error.config?.url || ''),
+    mensagemResposta(error.response?.data),
+  )
+}
+
+function irParaLogin() {
+  limparSessaoLocal()
+  if (window.location.pathname !== '/login') {
+    window.location.assign('/login')
+  }
+}
+
 let refreshPromise: Promise<string | null> | null = null
 
 /** Renova o JWT com o refresh token (ou o access token ainda na graça). */
@@ -51,7 +77,14 @@ export async function renovarToken(): Promise<string | null> {
       if (!data?.token) return null
       persistirSessao(data.token, data.refreshToken, data.user)
       return data.token
-    } catch {
+    } catch (error) {
+      if (axios.isAxiosError(error) && deveEncerrarSessao(
+        error.response?.status,
+        '/auth/refresh',
+        mensagemResposta(error.response?.data),
+      )) {
+        irParaLogin()
+      }
       return null
     }
   })().finally(() => {
@@ -76,25 +109,38 @@ api.interceptors.response.use(
   async (error) => {
     const cfg = error.config as RetryConfig | undefined
     const url = String(cfg?.url || '')
-    const isAuthLivre = url.includes('/auth/login')
-      || url.includes('/auth/refresh')
-      || url.includes('/auth/acesso-direto')
-    if (error.response?.status !== 401 || isAuthLivre || !cfg || cfg._retry) {
+    const status = error.response?.status as number | undefined
+    const mensagem = mensagemResposta(error.response?.data)
+    const isLogin = url.includes('/auth/login')
+    const isRefresh = url.includes('/auth/refresh')
+    const isAcessoDireto = url.includes('/auth/acesso-direto')
+
+    if (isLogin || isAcessoDireto) {
+      return Promise.reject(error)
+    }
+
+    if (status === 404 && deveEncerrarSessao(status, url, mensagem)) {
+      irParaLogin()
+      return Promise.reject(error)
+    }
+
+    if (status === 401 && isRefresh) {
+      irParaLogin()
+      return Promise.reject(error)
+    }
+
+    if (status !== 401 || !cfg || cfg._retry) {
       return Promise.reject(error)
     }
 
     cfg._retry = true
     const novo = await renovarToken()
     if (novo) {
-      cfg.headers = cfg.headers || {}
       cfg.headers.Authorization = `Bearer ${novo}`
       return api(cfg)
     }
 
-    limparSessaoLocal()
-    if (window.location.pathname !== '/') {
-      window.location.href = '/'
-    }
+    irParaLogin()
     return Promise.reject(error)
   },
 )

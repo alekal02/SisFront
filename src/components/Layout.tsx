@@ -13,6 +13,7 @@ import {
   FiPieChart,
   FiColumns,
   FiFileText,
+  FiLogOut,
 } from 'react-icons/fi'
 import './Layout.css'
 import { useAppVersion } from '../hooks/useAppVersion'
@@ -42,7 +43,7 @@ function getInitials(nome: string): string {
 }
 
 function Layout({ children }: LayoutProps) {
-  const { user, sairContrato } = useAuth()
+  const { user, sairContrato, logout } = useAuth()
   const gestor = ehGestor(user)
   const hubGestor = gestor && !user?.contractId
   const naUnidade = Boolean(user?.contractId)
@@ -58,6 +59,11 @@ function Layout({ children }: LayoutProps) {
   const versaoLabel = useAppVersion()
 
   const toggleSidebar = () => setSidebarAberta(prev => !prev)
+
+  const sair = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
   const temBreadcrumbsCustomizados = breadcrumbs.length > 0
   let titulo: string
@@ -219,6 +225,10 @@ function Layout({ children }: LayoutProps) {
         </nav>
 
         <div className="sidebar-footer">
+          <button type="button" className="sidebar-link sidebar-sair" onClick={sair}>
+            <span className="sidebar-icon"><FiLogOut size={20} /></span>
+            <span className={sidebarAberta ? '' : 'hidden-text'}>Sair</span>
+          </button>
           <span className={`sidebar-version ${sidebarAberta ? '' : 'hidden-text'}`}>
             {versaoLabel}
           </span>
@@ -261,12 +271,22 @@ function Layout({ children }: LayoutProps) {
               <button
                 type="button"
                 className="btn-logout-header"
-                onClick={() => { void sairContrato().then(() => navigate('/visao-geral?aba=contratos')) }}
+                onClick={() => {
+                  void sairContrato()
+                    .then(() => navigate('/visao-geral?aba=contratos'))
+                    .catch(() => {
+                      /* 401/404 já limpa o token e volta ao login */
+                    })
+                }}
                 title="Voltar para todos os contratos"
               >
                 <span>Todos os contratos</span>
               </button>
             )}
+            <button type="button" className="btn-logout-header" onClick={sair} title="Sair">
+              <FiLogOut size={16} />
+              <span>Sair</span>
+            </button>
             <div className="header-user-chip">
               <div className="header-user-avatar" title={gestor ? 'Gestor' : 'Unidade'}>
                 {getInitials(gestor ? 'Gestor' : 'Unidade')}

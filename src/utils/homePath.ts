@@ -1,7 +1,7 @@
 import type { UserData } from '../types'
 
-/** Tela de escolha de área. Fica na raiz: não existe mais página de login. */
-export const ROTA_ACESSO = '/'
+/** Sem sessão válida, qualquer rota volta para o login. */
+export const ROTA_ACESSO = '/login'
 
 export function isSuperadmin(user?: UserData | null): boolean {
   return user?.role === 'superadmin'
