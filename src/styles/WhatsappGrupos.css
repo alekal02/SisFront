@@ -399,6 +399,20 @@
   color: #64748b;
 }
 
+.wa-check {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 500;
+}
+
+.wa-erro-telefone {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.82rem;
+}
+
 .wa-modal form {
   display: flex;
   flex-direction: column;

@@ -50,6 +50,36 @@ export interface RecebimentoWhatsapp {
   resumo: string
 }
 
+export interface WhatsappAutorizadoItem {
+  id: string
+  contractId: string
+  nomeContrato: string | null
+  nome: string
+  telefone: string
+  lid: string | null
+  podeEnviarPlanilha: boolean
+  podePedirRelatorio: boolean
+  ativo: boolean
+  criadoEm: string
+}
+
+export interface WhatsappAutorizadoPayload {
+  contractId: string
+  nome: string
+  telefone: string
+  podeEnviarPlanilha: boolean
+  podePedirRelatorio: boolean
+  ativo?: boolean
+}
+
+export interface WhatsappTentativaItem {
+  id: string
+  telefone: string
+  nomePerfil: string | null
+  tipo: 'planilha' | 'relatorio'
+  criadoEm: string
+}
+
 export interface WhatsappGrupoPayload {
   grupoJid: string
   nomeGrupo?: string | null
@@ -107,6 +137,41 @@ const wuzapiService = {
 
   async excluirGrupo(id: string): Promise<void> {
     await api.delete(`/wuzapi/grupos/${id}`)
+  },
+
+  async listarAutorizados(contractId: string): Promise<WhatsappAutorizadoItem[]> {
+    const { data } = await api.get<WhatsappAutorizadoItem[]>('/wuzapi/autorizados', { params: { contractId } })
+    return Array.isArray(data) ? data : []
+  },
+
+  async criarAutorizado(payload: WhatsappAutorizadoPayload): Promise<WhatsappAutorizadoItem> {
+    const { data } = await api.post<WhatsappAutorizadoItem>('/wuzapi/autorizados', payload)
+    return data
+  },
+
+  async atualizarAutorizado(id: string, payload: Partial<WhatsappAutorizadoPayload>): Promise<WhatsappAutorizadoItem> {
+    const { data } = await api.put<WhatsappAutorizadoItem>(`/wuzapi/autorizados/${id}`, payload)
+    return data
+  },
+
+  async removerAutorizado(id: string): Promise<void> {
+    await api.delete(`/wuzapi/autorizados/${id}`)
+  },
+
+  async listarTentativas(): Promise<WhatsappTentativaItem[]> {
+    const { data } = await api.get<{ tentativas: WhatsappTentativaItem[] }>('/wuzapi/tentativas')
+    return data.tentativas || []
+  },
+
+  async autorizarTentativa(id: string, payload: {
+    contractId: string
+    telefone?: string
+    nome?: string
+    podeEnviarPlanilha: boolean
+    podePedirRelatorio: boolean
+  }): Promise<WhatsappAutorizadoItem> {
+    const { data } = await api.post<WhatsappAutorizadoItem>(`/wuzapi/tentativas/${id}/autorizar`, payload)
+    return data
   },
 }
 

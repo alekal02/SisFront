@@ -28,7 +28,7 @@ const MAPA_TITULOS: Record<string, string> = {
   '/contratos': 'Contratos',
   '/kpis-universais': 'Biblioteca de KPIs',
   '/graficos-padrao': 'Gráficos padrão',
-  '/whatsapp-grupos': 'Grupos WhatsApp',
+  '/whatsapp-grupos': 'WhatsApp',
   '/dashboard/executivo': 'Relatórios executivos',
 }
 

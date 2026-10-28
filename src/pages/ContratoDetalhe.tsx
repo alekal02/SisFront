@@ -26,6 +26,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useBreadcrumbs } from '../contexts/BreadcrumbContext';
 import type { EtapasStatus } from '../components/ServicoMiniFlow';
 import ContratoOperacaoUnificada from '../components/ContratoOperacaoUnificada';
+import WhatsappAutorizadosContrato from '../components/WhatsappAutorizadosContrato';
 import RelatoriosMenu from '../components/RelatoriosMenu';
 import { relatoriosDoContexto } from '../relatorios/catalogoRelatorios';
 import DataTable from '../components/DataTable';
@@ -357,10 +358,10 @@ export default function ContratoDetalhe() {
   const [salvandoDensidadePlaca, setSalvandoDensidadePlaca] = useState(false);
   const [exportandoCicloTodos, setExportandoCicloTodos] = useState(false);
   const [dataRelatorio, setDataRelatorio] = useState('');
-  const abaHub = (['operacao', 'relatorios', 'config'].includes(searchParams.get('aba') || '')
+  const abaHub = (['operacao', 'relatorios', 'config', 'whatsapp'].includes(searchParams.get('aba') || '')
     ? searchParams.get('aba')
-    : 'operacao') as 'operacao' | 'relatorios' | 'config';
-  const setAbaHub = (aba: 'operacao' | 'relatorios' | 'config') => {
+    : 'operacao') as 'operacao' | 'relatorios' | 'config' | 'whatsapp';
+  const setAbaHub = (aba: 'operacao' | 'relatorios' | 'config' | 'whatsapp') => {
     const next = new URLSearchParams(searchParams);
     if (aba === 'operacao') next.delete('aba');
     else next.set('aba', aba);
@@ -1135,8 +1136,8 @@ export default function ContratoDetalhe() {
           <button
             type="button"
             className="btn btn-sm btn-ghost"
-            onClick={() => navigate('/whatsapp-grupos')}
-            title="WhatsApp desta unidade"
+            onClick={() => setAbaHub('whatsapp')}
+            title="Pessoas autorizadas na conversa privada com o número do chatbot"
           >
             <FiMessageSquare size={12} /> WhatsApp
           </button>
@@ -1162,7 +1163,12 @@ export default function ContratoDetalhe() {
         <button type="button" className={abaHub === 'config' ? 'is-on' : ''} onClick={() => setAbaHub('config')}>
           Configuração
         </button>
+        <button type="button" className={abaHub === 'whatsapp' ? 'is-on' : ''} onClick={() => setAbaHub('whatsapp')}>
+          WhatsApp
+        </button>
       </nav>
+
+      {abaHub === 'whatsapp' && id && <WhatsappAutorizadosContrato contractId={id} />}
 
       {abaHub === 'relatorios' && (
         <section className="contrato-relatorios-hub">
@@ -1192,7 +1198,7 @@ export default function ContratoDetalhe() {
                 onChange={(e) => setDataRelatorio(e.target.value)}
               />
             </label>
-            <p>Abra o PDF do dia em cada serviço. No WhatsApp, peça com <code>dia 16/09</code>.</p>
+            <p>Abra o PDF do dia em cada serviço. Na conversa privada com o número do chatbot, peça com <code>dia 16/09</code>.</p>
             <div className="contrato-relatorios-servicos">
               {servicos.map((s) => (
                 <button
