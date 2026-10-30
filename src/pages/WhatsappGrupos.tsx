@@ -65,6 +65,7 @@ export default function WhatsappGrupos() {
   const [servicos, setServicos] = useState<ServicoOpcao[]>([])
   const [carregando, setCarregando] = useState(true)
   const [conectando, setConectando] = useState(false)
+  const [gerandoNova, setGerandoNova] = useState(false)
   const [desconectando, setDesconectando] = useState(false)
   const [modalAberto, setModalAberto] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
@@ -184,9 +185,16 @@ export default function WhatsappGrupos() {
         adicionarToast(r.erro || 'Falha ao conectar', 'error')
       } else {
         adicionarToast(r.message || 'Conexão iniciada — escaneie o QR', 'success')
-        if (r.qrCode) {
-          setStatus((prev) => (prev ? { ...prev, qrCode: r.qrCode, conectado: true, logado: false } : prev))
-        }
+        setStatus((prev) => (prev ? {
+          ...prev,
+          qrCode: r.qrCode ?? prev.qrCode,
+          conectado: r.conectado ?? true,
+          logado: r.logado ?? false,
+          nomeInstancia: r.nomeInstancia ?? prev.nomeInstancia,
+          numeroMascarado: r.numeroMascarado ?? prev.numeroMascarado,
+          statusConexao: r.statusConexao ?? prev.statusConexao,
+          alertaWebhook: r.alertaWebhook ?? null,
+        } : prev))
         setTimeout(() => atualizarStatus(true), 2000)
       }
     } catch (error: unknown) {
@@ -195,6 +203,55 @@ export default function WhatsappGrupos() {
       adicionarToast(msg || 'Erro ao conectar WhatsApp', 'error')
     } finally {
       setConectando(false)
+    }
+  }
+
+  const aplicarRespostaConexao = (r: {
+    qrCode?: string | null
+    conectado?: boolean
+    logado?: boolean
+    nomeInstancia?: string | null
+    numeroMascarado?: string
+    statusConexao?: 'conectado' | 'deslogado'
+    alertaWebhook?: string | null
+  }) => {
+    setStatus((prev) => (prev ? {
+      ...prev,
+      qrCode: r.qrCode ?? null,
+      conectado: r.conectado ?? prev.conectado,
+      logado: r.logado ?? false,
+      nomeInstancia: r.nomeInstancia ?? prev.nomeInstancia,
+      numeroMascarado: r.numeroMascarado ?? prev.numeroMascarado,
+      statusConexao: r.statusConexao ?? prev.statusConexao,
+      alertaWebhook: r.alertaWebhook ?? null,
+    } : prev))
+  }
+
+  const handleNovaConexao = async () => {
+    const digitado = window.prompt(
+      'Isso cria outra instância deste projeto e encerra só a anterior dele. Digite NOVA CONEXAO para confirmar.',
+    )
+    if (digitado === null) return
+    if (digitado !== 'NOVA CONEXAO') {
+      adicionarToast('Confirmação não confere. Nada foi alterado.', 'error')
+      return
+    }
+    setGerandoNova(true)
+    try {
+      const r = await wuzapiService.novaConexao()
+      if (r.sucesso === false) {
+        adicionarToast(r.erro || 'Falha ao gerar nova conexão', 'error')
+      } else {
+        adicionarToast(r.message || 'Nova conexão criada. Escaneie o QR.', 'success')
+        aplicarRespostaConexao(r)
+        setTimeout(() => atualizarStatus(true), 2000)
+      }
+    } catch (error: unknown) {
+      const msg = (error as { response?: { data?: { erro?: string; error?: string } } })?.response?.data?.erro
+        || (error as { response?: { data?: { error?: string } } })?.response?.data?.error
+      adicionarToast(msg || 'Erro ao gerar nova conexão', 'error')
+    } finally {
+      setGerandoNova(false)
     }
   }
 
@@ -375,6 +432,8 @@ export default function WhatsappGrupos() {
         </div>
       </div>
 
+      <p className="wa-aviso-exclusivo">Use um número de WhatsApp exclusivo deste projeto.</p>
+
       <div className={`wa-status-card ${status?.configurado ? (sessaoOk ? 'ok' : 'warn') : 'off'}`}>
         <div className="wa-status-icon">
           {sessaoOk ? <FiCheckCircle size={18} /> : <FiAlertTriangle size={18} />}
@@ -385,27 +444,30 @@ export default function WhatsappGrupos() {
               ? 'WuzAPI não configurada'
               : wuzapiOffline
                 ? 'WuzAPI offline (container parado)'
-                : sessaoOk
-                  ? 'WhatsApp conectado e logado'
+                : status?.statusConexao === 'conectado' || sessaoOk
+                  ? 'WhatsApp conectado'
                   : aguardandoQr
-                    ? 'Aguardando leitura do QR Code'
-                    : 'WuzAPI configurada — sessão offline'}
+                    ? 'WhatsApp deslogado — aguardando QR Code'
+                    : 'WhatsApp deslogado'}
           </strong>
           <div className="wa-status-meta">
             {!status?.configurado
-              ? 'Defina WUZAPI_URL e WUZAPI_TOKEN no .env e reinicie o backend (a WuzAPI precisa estar rodando).'
+              ? 'Defina WUZAPI_URL no .env e reinicie o backend (a WuzAPI precisa estar rodando).'
               : wuzapiOffline
-                ? 'Suba a WuzAPI: docker compose up -d wuzapi-db wuzapi — depois clique em Conectar / Gerar QR.'
+                ? 'Suba a WuzAPI: docker compose up -d wuzapi-db wuzapi — depois clique em Conectar.'
                 : (
                 <>
-                  {status?.url || 'URL não definida'}
-                  {status?.tokenExiste === false ? ' · token ausente' : ''}
-                  {status?.sessao?.jid ? ` · ${status.sessao.jid}` : ''}
-                  {status?.mensagem ? ` · ${status.mensagem}` : ''}
+                  {status?.nomeInstancia ? `Instância: ${status.nomeInstancia}` : 'Sem instância própria'}
+                  {' · '}
+                  {status?.statusConexao === 'conectado' || sessaoOk ? 'conectado' : 'deslogado'}
+                  {status?.numeroMascarado ? ` · ${status.numeroMascarado}` : ''}
                   {status?.erroSessao && !wuzapiOffline ? ` · ${status.erroSessao}` : ''}
                 </>
               )}
           </div>
+          {status?.alertaWebhook && (
+            <p className="wa-alerta-webhook">{status.alertaWebhook}</p>
+          )}
           {status?.configurado && (
             <div className="wa-webhook">
               Webhook: <code>{webhookUrl}</code>
@@ -417,23 +479,29 @@ export default function WhatsappGrupos() {
           )}
           {status?.configurado && !wuzapiOffline && (
             <div className="wa-connect-row">
-              {!logado && (
-                <button
-                  type="button"
-                  className="btn-conectar"
-                  onClick={handleConectar}
-                  disabled={conectando || desconectando}
-                >
-                  <FiWifi size={15} />
-                  {conectando ? 'Conectando…' : 'Conectar / Gerar QR'}
-                </button>
-              )}
+              <button
+                type="button"
+                className="btn-conectar"
+                onClick={handleConectar}
+                disabled={conectando || desconectando || gerandoNova}
+              >
+                <FiWifi size={15} />
+                {conectando ? 'Conectando…' : 'Conectar'}
+              </button>
+              <button
+                type="button"
+                className="btn-nova-conexao"
+                onClick={handleNovaConexao}
+                disabled={conectando || desconectando || gerandoNova}
+              >
+                {gerandoNova ? 'Gerando…' : 'Gerar nova conexão'}
+              </button>
               {(conectado || logado) && (
                 <button
                   type="button"
                   className="btn-desconectar"
                   onClick={handleDesconectar}
-                  disabled={conectando || desconectando}
+                  disabled={conectando || desconectando || gerandoNova}
                   title="Encerrar sessão WhatsApp neste sistema"
                 >
                   <FiWifiOff size={15} />
@@ -452,7 +520,7 @@ export default function WhatsappGrupos() {
           {qrCode ? (
             <img src={qrCode} alt="QR Code WhatsApp" className="wa-qr-img" />
           ) : (
-            <p className="wa-qr-wait">Gerando QR… clique em “Conectar / Gerar QR” se não aparecer.</p>
+            <p className="wa-qr-wait">Gerando QR… clique em “Conectar” se não aparecer.</p>
           )}
           <p className="wa-qr-hint">O código atualiza sozinho a cada poucos segundos. Não feche esta página.</p>
         </div>
