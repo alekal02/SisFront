@@ -9,6 +9,11 @@ export interface WuzapiStatus {
   conectado?: boolean
   logado?: boolean
   qrCode?: string | null
+  nomeInstancia?: string | null
+  instanciaPropria?: boolean
+  statusConexao?: 'conectado' | 'deslogado'
+  numeroMascarado?: string
+  alertaWebhook?: string | null
   sessao?: {
     connected?: boolean
     loggedIn?: boolean
@@ -95,8 +100,35 @@ const wuzapiService = {
     return data
   },
 
-  async connect(): Promise<{ sucesso: boolean; message?: string; qrCode?: string | null; erro?: string }> {
+  async connect(): Promise<{
+    sucesso: boolean
+    message?: string
+    qrCode?: string | null
+    erro?: string
+    conectado?: boolean
+    logado?: boolean
+    nomeInstancia?: string | null
+    numeroMascarado?: string
+    statusConexao?: 'conectado' | 'deslogado'
+    alertaWebhook?: string | null
+  }> {
     const { data } = await api.post('/wuzapi/connect', {})
+    return data
+  },
+
+  async novaConexao(): Promise<{
+    sucesso: boolean
+    message?: string
+    qrCode?: string | null
+    erro?: string
+    nomeInstancia?: string | null
+    numeroMascarado?: string
+    statusConexao?: 'conectado' | 'deslogado'
+    alertaWebhook?: string | null
+    conectado?: boolean
+    logado?: boolean
+  }> {
+    const { data } = await api.post('/wuzapi/nova-conexao', { confirmacao: 'NOVA CONEXAO' })
     return data
   },
 
