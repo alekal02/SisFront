@@ -1,7 +1,11 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { FiEdit2, FiPlus, FiTrash2, FiX } from 'react-icons/fi'
 import { useToast } from '../contexts/ToastContext'
-import wuzapiService, { type WhatsappAutorizadoItem } from '../services/wuzapiService'
+import wuzapiService, {
+  type PessoaWhatsappAgenda,
+  type WhatsappAutorizadoItem,
+  type WhatsappGrupoMapaItem,
+} from '../services/wuzapiService'
 import '../styles/WhatsappGrupos.css'
 
 function soDigitos(valor: string): string {
@@ -30,6 +34,30 @@ interface FormPessoa {
   ativo: boolean
 }
 
+type AbaPessoa = 'contatos' | 'grupos' | 'digitar'
+
+function mensagemErro(error: unknown, fallback: string): string {
+  const resposta = (error as { response?: { data?: { error?: string } } })?.response?.data?.error
+  return resposta || fallback
+}
+
+/** (62) 9****-8888 — o número completo não aparece na lista. */
+function mascararTelefoneLista(telefone: string): string {
+  const d = String(telefone || '').replace(/\D/g, '')
+  if (/^55\d{2}9\d{8}$/.test(d)) return `(${d.slice(2, 4)}) 9****-${d.slice(-4)}`
+  if (/^55\d{2}\d{8}$/.test(d)) return `(${d.slice(2, 4)}) ****-${d.slice(-4)}`
+  if (d.length >= 8) return `${d.slice(0, 2)}****${d.slice(-2)}`
+  return '****'
+}
+
+function casaBusca(pessoa: PessoaWhatsappAgenda, termo: string): boolean {
+  const texto = termo.trim().toLowerCase()
+  if (!texto) return true
+  if (pessoa.nome.toLowerCase().includes(texto)) return true
+  const digitos = texto.replace(/\D/g, '')
+  return !!digitos && pessoa.telefone.includes(digitos)
+}
+
 const formVazio: FormPessoa = {
   nome: '',
   telefone: '',
@@ -47,6 +75,17 @@ export default function WhatsappAutorizadosContrato({ contractId }: { contractId
   const [form, setForm] = useState<FormPessoa>(formVazio)
   const [salvando, setSalvando] = useState(false)
   const [erroTelefone, setErroTelefone] = useState('')
+  const [aba, setAba] = useState<AbaPessoa>('contatos')
+  const [busca, setBusca] = useState('')
+  const [contatos, setContatos] = useState<PessoaWhatsappAgenda[]>([])
+  const [participantes, setParticipantes] = useState<PessoaWhatsappAgenda[]>([])
+  const [grupos, setGrupos] = useState<WhatsappGrupoMapaItem[]>([])
+  const [grupoJid, setGrupoJid] = useState('')
+  const [carregandoAgenda, setCarregandoAgenda] = useState(false)
+  const [avisoAgenda, setAvisoAgenda] = useState('')
+  const [selecionados, setSelecionados] = useState<string[]>([])
+  const [lotePlanilha, setLotePlanilha] = useState(false)
+  const [loteRelatorio, setLoteRelatorio] = useState(false)
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -62,11 +101,131 @@ export default function WhatsappAutorizadosContrato({ contractId }: { contractId
 
   useEffect(() => { void carregar() }, [carregar])
 
+  const carregarContatos = useCallback(async () => {
+    setCarregandoAgenda(true)
+    setAvisoAgenda('')
+    try {
+      setContatos(await wuzapiService.listarContatos(contractId))
+    } catch (error: unknown) {
+      const status = (error as { response?: { status?: number } })?.response?.status
+      const msg = mensagemErro(error, 'Não foi possível listar os contatos.')
+      setContatos([])
+      setAvisoAgenda(msg)
+      if (status !== 409) adicionarToast(msg, 'error')
+    } finally {
+      setCarregandoAgenda(false)
+    }
+  }, [adicionarToast, contractId])
+
+  const carregarGrupos = useCallback(async () => {
+    try {
+      const lista = await wuzapiService.listarGrupos()
+      const doContrato = lista.filter((grupo) => grupo.contractId === contractId)
+      setGrupos(doContrato)
+      setGrupoJid((atual) => atual || doContrato[0]?.grupoJid || '')
+    } catch (error: unknown) {
+      adicionarToast(mensagemErro(error, 'Não foi possível listar os grupos do contrato.'), 'error')
+    }
+  }, [adicionarToast, contractId])
+
+  const carregarParticipantes = useCallback(async (jid: string) => {
+    if (!jid) {
+      setParticipantes([])
+      return
+    }
+    setCarregandoAgenda(true)
+    setAvisoAgenda('')
+    try {
+      setParticipantes(await wuzapiService.listarParticipantes(contractId, jid))
+    } catch (error: unknown) {
+      const status = (error as { response?: { status?: number } })?.response?.status
+      const msg = mensagemErro(error, 'Não foi possível listar os participantes.')
+      setParticipantes([])
+      setAvisoAgenda(msg)
+      if (status !== 409) adicionarToast(msg, 'error')
+    } finally {
+      setCarregandoAgenda(false)
+    }
+  }, [adicionarToast, contractId])
+
+  useEffect(() => {
+    if (!modal || editandoId || aba !== 'contatos') return
+    void carregarContatos()
+  }, [aba, carregarContatos, editandoId, modal])
+
+  useEffect(() => {
+    if (!modal || editandoId || aba !== 'grupos') return
+    void carregarGrupos()
+  }, [aba, carregarGrupos, editandoId, modal])
+
+  useEffect(() => {
+    if (!modal || editandoId || aba !== 'grupos' || !grupoJid) return
+    void carregarParticipantes(grupoJid)
+  }, [aba, carregarParticipantes, editandoId, grupoJid, modal])
+
+  const origemAgenda = aba === 'grupos' ? participantes : contatos
+  const visiveis = useMemo(
+    () => origemAgenda.filter((pessoa) => casaBusca(pessoa, busca)),
+    [origemAgenda, busca],
+  )
+
   const abrirNovo = () => {
     setEditandoId(null)
     setForm(formVazio)
     setErroTelefone('')
+    setAba('contatos')
+    setBusca('')
+    setSelecionados([])
+    setAvisoAgenda('')
+    setLotePlanilha(false)
+    setLoteRelatorio(false)
     setModal(true)
+  }
+
+  const trocarAba = (proxima: AbaPessoa) => {
+    setAba(proxima)
+    setBusca('')
+    setSelecionados([])
+    setAvisoAgenda('')
+  }
+
+  const alternarSelecao = (telefonePessoa: string, jaAutorizado: boolean) => {
+    if (jaAutorizado) return
+    setSelecionados((atual) => (
+      atual.includes(telefonePessoa)
+        ? atual.filter((item) => item !== telefonePessoa)
+        : [...atual, telefonePessoa]
+    ))
+  }
+
+  const autorizarSelecionados = async () => {
+    const pessoas = origemAgenda.filter((pessoa) => selecionados.includes(pessoa.telefone) && !pessoa.jaAutorizado)
+    if (!pessoas.length) return
+    setSalvando(true)
+    try {
+      const resultado = await wuzapiService.autorizarLote(contractId, pessoas.map((pessoa) => ({
+        nome: pessoa.nome,
+        telefone: pessoa.telefone,
+        podeEnviarPlanilha: lotePlanilha,
+        podePedirRelatorio: loteRelatorio,
+      })))
+      const criados = resultado.criados?.length || 0
+      const ignorados = resultado.ignorados?.length || 0
+      adicionarToast(
+        criados
+          ? `${criados} pessoa(s) autorizada(s)${ignorados ? `. ${ignorados} já estavam na lista` : ''}.`
+          : 'Nenhuma pessoa nova. As selecionadas já estavam autorizadas.',
+        criados ? 'success' : 'warning',
+      )
+      setSelecionados([])
+      await carregar()
+      if (aba === 'contatos') await carregarContatos()
+      if (aba === 'grupos' && grupoJid) await carregarParticipantes(grupoJid)
+    } catch (error: unknown) {
+      adicionarToast(mensagemErro(error, 'Não foi possível autorizar as pessoas.'), 'error')
+    } finally {
+      setSalvando(false)
+    }
   }
 
   const abrirEditar = (pessoa: WhatsappAutorizadoItem) => {
@@ -201,11 +360,90 @@ export default function WhatsappAutorizadosContrato({ contractId }: { contractId
 
       {modal && (
         <div className="wa-modal-overlay" onClick={() => setModal(false)}>
-          <div className="wa-modal" onClick={(e) => e.stopPropagation()}>
+          <div className={`wa-modal ${editandoId ? '' : 'wa-modal-larga'}`} onClick={(e) => e.stopPropagation()}>
             <div className="wa-modal-hd">
               <h3>{editandoId ? 'Editar pessoa' : 'Autorizar pessoa'}</h3>
               <button type="button" onClick={() => setModal(false)} aria-label="Fechar"><FiX size={16} /></button>
             </div>
+            {!editandoId && (
+              <div className="wa-autorizar-abas" role="tablist" aria-label="Adicionar pessoa">
+                <button type="button" role="tab" aria-selected={aba === 'contatos'} className={aba === 'contatos' ? 'is-on' : ''} onClick={() => trocarAba('contatos')}>
+                  Contatos do WhatsApp
+                </button>
+                <button type="button" role="tab" aria-selected={aba === 'grupos'} className={aba === 'grupos' ? 'is-on' : ''} onClick={() => trocarAba('grupos')}>
+                  Participantes do grupo
+                </button>
+                <button type="button" role="tab" aria-selected={aba === 'digitar'} className={aba === 'digitar' ? 'is-on' : ''} onClick={() => trocarAba('digitar')}>
+                  Digitar
+                </button>
+              </div>
+            )}
+            {!editandoId && aba !== 'digitar' && (
+              <div className="wa-autorizar-lista">
+                {aba === 'grupos' && (
+                  <label className="wa-autorizar-grupo">
+                    Grupo deste contrato
+                    <select
+                      value={grupoJid}
+                      onChange={(evento) => {
+                        setGrupoJid(evento.target.value)
+                        setSelecionados([])
+                      }}
+                    >
+                      {grupos.length === 0 && <option value="">Nenhum grupo mapeado</option>}
+                      {grupos.map((grupo) => (
+                        <option key={grupo.id} value={grupo.grupoJid}>
+                          {grupo.nomeGrupo || grupo.grupoJid}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <input
+                  className="wa-autorizar-busca"
+                  type="search"
+                  value={busca}
+                  placeholder="Buscar por nome ou número"
+                  onChange={(evento) => setBusca(evento.target.value)}
+                />
+                {avisoAgenda && <p className="wa-autorizar-aviso">{avisoAgenda}</p>}
+                {carregandoAgenda && <p className="wa-autorizar-aviso">Carregando…</p>}
+                {!carregandoAgenda && !avisoAgenda && visiveis.length === 0 && (
+                  <p className="wa-autorizar-aviso">Nenhuma pessoa encontrada.</p>
+                )}
+                <ul className="wa-autorizar-pessoas">
+                  {visiveis.map((pessoa) => (
+                    <li key={pessoa.telefone}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={selecionados.includes(pessoa.telefone)}
+                          disabled={!!pessoa.jaAutorizado}
+                          onChange={() => alternarSelecao(pessoa.telefone, !!pessoa.jaAutorizado)}
+                        />
+                        <span className="wa-autorizar-nome">{pessoa.nome}</span>
+                        <span className="wa-autorizar-fone">{mascararTelefoneLista(pessoa.telefone)}</span>
+                        {pessoa.jaAutorizado && <span className="wa-autorizar-selo">já autorizado</span>}
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+                <div className="wa-autorizar-permissoes">
+                  <label>
+                    <input type="checkbox" checked={lotePlanilha} onChange={(evento) => setLotePlanilha(evento.target.checked)} />
+                    Envia planilha
+                  </label>
+                  <label>
+                    <input type="checkbox" checked={loteRelatorio} onChange={(evento) => setLoteRelatorio(evento.target.checked)} />
+                    Pede relatório
+                  </label>
+                  <button type="button" className="btn-novo" disabled={salvando || selecionados.length === 0} onClick={() => { void autorizarSelecionados() }}>
+                    Autorizar selecionados ({selecionados.length})
+                  </button>
+                </div>
+              </div>
+            )}
+            {(editandoId || aba === 'digitar') && (
             <form onSubmit={(e) => void salvar(e)}>
               <label>Nome
                 <input value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))} required />
@@ -252,6 +490,7 @@ export default function WhatsappAutorizadosContrato({ contractId }: { contractId
                 <button type="submit" className="btn-novo" disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar'}</button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}

@@ -34,10 +34,29 @@ export interface WhatsappGrupoMapaItem {
   servicoId: string
   servicoNome: string | null
   contratoNome: string | null
+  contractId?: string | null
   ativo: boolean
   estrategia: string
   responderPdf: boolean
   criadoEm: string
+}
+
+export interface PessoaWhatsappAgenda {
+  nome: string
+  telefone: string
+  jaAutorizado?: boolean
+}
+
+export interface PessoaWhatsappLote {
+  nome: string
+  telefone: string
+  podeEnviarPlanilha: boolean
+  podePedirRelatorio: boolean
+}
+
+export interface ResultadoLoteWhatsapp {
+  criados: Array<PessoaWhatsappLote & { id?: string }>
+  ignorados: Array<{ nome: string; telefone: string; motivo: string }>
 }
 
 export interface WhatsappGrupoWhatsAppItem {
@@ -203,6 +222,32 @@ const wuzapiService = {
     podePedirRelatorio: boolean
   }): Promise<WhatsappAutorizadoItem> {
     const { data } = await api.post<WhatsappAutorizadoItem>(`/wuzapi/tentativas/${id}/autorizar`, payload)
+    return data
+  },
+
+  async listarContatos(contractId: string): Promise<PessoaWhatsappAgenda[]> {
+    const { data } = await api.get<PessoaWhatsappAgenda[] | { contatos?: PessoaWhatsappAgenda[] }>(
+      '/wuzapi/contatos',
+      { params: { contractId } },
+    )
+    if (Array.isArray(data)) return data
+    return data?.contatos || []
+  },
+
+  async listarParticipantes(contractId: string, grupoJid: string): Promise<PessoaWhatsappAgenda[]> {
+    const { data } = await api.get<PessoaWhatsappAgenda[] | { participantes?: PessoaWhatsappAgenda[] }>(
+      `/wuzapi/grupos/${encodeURIComponent(grupoJid)}/participantes`,
+      { params: { contractId } },
+    )
+    if (Array.isArray(data)) return data
+    return data?.participantes || []
+  },
+
+  async autorizarLote(contractId: string, pessoas: PessoaWhatsappLote[]): Promise<ResultadoLoteWhatsapp> {
+    const { data } = await api.post<ResultadoLoteWhatsapp>(
+      `/contracts/${contractId}/whatsapp-autorizados/lote`,
+      { pessoas },
+    )
     return data
   },
 }
