@@ -6,7 +6,10 @@ export const APP_VERSION: string =
 
 export function formatVersionLabel(version: string): string {
   const raw = (version || 'dev').trim()
-  if (!raw || raw === 'dev' || raw === 'unknown' || raw === 'latest') return 'Sistemma (dev)'
+  const producao = typeof import.meta !== 'undefined' && Boolean(import.meta.env?.PROD)
+  if (!raw || raw === 'dev' || raw === 'unknown' || raw === 'latest') {
+    return producao ? 'Sistemma' : 'Sistemma (dev)'
+  }
 
   const clean = raw.replace(/-dirty$/, '')
 

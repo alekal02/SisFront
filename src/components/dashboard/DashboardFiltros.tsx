@@ -48,6 +48,7 @@ const DashboardFiltros = memo(function DashboardFiltros({
   const [diaInicioCiclo, setDiaInicioCiclo] = useState(1);
   const [mesRef, setMesRef] = useState(refCicloInicial.mes);
   const [anoRef, setAnoRef] = useState(refCicloInicial.ano);
+  const [cicloProntoId, setCicloProntoId] = useState<string | null>(null);
 
   const emitirFiltros = useCallback((
     cId: string,
@@ -82,7 +83,6 @@ const DashboardFiltros = memo(function DashboardFiltros({
         adicionarToast('Erro ao carregar lista de contratos', 'error');
       } finally {
         setCarregandoContratos(false);
-        onReadyChange?.(true);
       }
     })();
   }, [adicionarToast, onReadyChange]);
@@ -139,19 +139,27 @@ const DashboardFiltros = memo(function DashboardFiltros({
       const ref = inferirMesReferenciaAtual(1);
       setMesRef(ref.mes);
       setAnoRef(ref.ano);
+      setCicloProntoId('');
       return;
     }
+    setCicloProntoId(null);
+    let vivo = true;
     contractService.buscar(contratoId)
       .then((c) => {
+        if (!vivo) return;
         const dia = c.diaInicioCiclo ?? 1;
         setDiaInicioCiclo(dia);
         const ref = inferirMesReferenciaAtual(dia);
         setMesRef(ref.mes);
         setAnoRef(ref.ano);
+        setCicloProntoId(contratoId);
       })
       .catch(() => {
+        if (!vivo) return;
         setDiaInicioCiclo(1);
+        setCicloProntoId(contratoId);
       });
+    return () => { vivo = false; };
   }, [contratoId]);
 
   const contratoSelecionado = useMemo(
@@ -166,7 +174,14 @@ const DashboardFiltros = memo(function DashboardFiltros({
 
   useEffect(() => {
     if (carregandoContratos) return;
-    if (contratos.length > 0 && !contratoId) return;
+    if (contratos.length > 0 && !contratoId) {
+      onReadyChange?.(false);
+      return;
+    }
+    if (cicloProntoId !== contratoId) {
+      onReadyChange?.(false);
+      return;
+    }
     emitirFiltros(
       contratoId,
       servicoId,
@@ -176,6 +191,7 @@ const DashboardFiltros = memo(function DashboardFiltros({
       contratoSelecionado?.numeroContrato,
       servicoSelecionado?.nome,
     );
+    onReadyChange?.(true);
   }, [
     carregandoContratos,
     contratoId,
@@ -187,6 +203,8 @@ const DashboardFiltros = memo(function DashboardFiltros({
     emitirFiltros,
     contratoSelecionado?.numeroContrato,
     servicoSelecionado?.nome,
+    cicloProntoId,
+    onReadyChange,
   ]);
 
   const handleCicloChange = useCallback((mes: number, ano: number) => {

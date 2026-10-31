@@ -69,7 +69,7 @@ export function useDashboardExecutivo() {
       ...(f.contratoId ? { contractId: f.contratoId } : {}),
       ...(f.servicoId ? { servicoId: f.servicoId } : {}),
     };
-    const filtrosKey = JSON.stringify(filtrosApi);
+    const filtrosKey = JSON.stringify({ ...filtrosApi, diaInicioCiclo: f.diaInicioCiclo });
 
     if (forcarRefresh) {
       try {
@@ -156,6 +156,8 @@ export function useDashboardExecutivo() {
   }, [filtrosGA.setTotalRegistros, filtrosGA.setTotalFiltrado, adicionarToast]);
 
   useEffect(() => {
+    setDados(null);
+    setCarregando(true);
     if (!filtrosProntos) return;
     carregarDados(false);
   }, [carregarDados, filtros, filtrosProntos]);

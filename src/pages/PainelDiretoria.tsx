@@ -54,6 +54,7 @@ export default function PainelDiretoria() {
   }, [])
 
   const ranking = useMemo(() => ordenarRanking(cards || []), [cards])
+  const temMeta = (cards || []).some((c) => c.pctMeta != null)
   const grafico = useMemo(() => montarGrafico(cards || []), [cards])
 
   return (
@@ -105,7 +106,9 @@ export default function PainelDiretoria() {
                 </div>
                 <div>
                   <small>Meta</small>
-                  <strong className="pd-muted">sem meta</strong>
+                  {card.pctMeta == null
+                    ? <strong className="pd-muted">sem meta</strong>
+                    : <strong>{card.pctMeta.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</strong>}
                 </div>
                 <div>
                   <small>Variação</small>
@@ -161,10 +164,17 @@ export default function PainelDiretoria() {
       {cards && (
         <section className="pd-bloco">
           <h3>Ranking</h3>
-          <p className="pd-ajuda">Sem meta financeira. Variação de toneladas contra os mesmos dias do ciclo anterior.</p>
+          <p className="pd-ajuda">
+            {temMeta
+              ? 'Ordenado pelo percentual da meta do ciclo. Sem meta, a variação de produção fica no fim.'
+              : 'Sem meta financeira. Variação de toneladas contra os mesmos dias do ciclo anterior.'}
+          </p>
           <div className="pd-ranking">
             {ranking.map((card, i) => {
-              const sem = card.variacaoProducao == null
+              const valor = card.pctMeta != null
+                ? `${card.pctMeta.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`
+                : (card.variacaoProducao == null ? null : fmtPct(card.variacaoProducao))
+              const sem = valor == null
               return (
                 <button
                   key={card.id}
@@ -174,7 +184,7 @@ export default function PainelDiretoria() {
                 >
                   <b>{sem ? '—' : i + 1}</b>
                   <span>{card.nome}</span>
-                  <strong>{sem ? 'sem dado' : fmtPct(card.variacaoProducao!)}</strong>
+                  <strong>{sem ? 'sem dado' : valor}</strong>
                 </button>
               )
             })}

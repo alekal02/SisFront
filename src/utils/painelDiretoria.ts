@@ -38,8 +38,10 @@ export interface CardDiretoria {
   luz: LuzDiretoria
   serie: PontoCiclo[]
   tarifaUnica: number | null
-  fatPorTipo: Record<string, number>
+  fatPorTipo?: Record<string, number>
   tarifas: TarifasColeta
+  pctMeta?: number | null
+  metaFaturamento?: number | null
   erro?: string
 }
 
@@ -209,12 +211,18 @@ export function projetarFechamento(realizado: number, diasDecorridos: number, di
   return Math.round((realizado / diasDecorridos) * diasCiclo * 100) / 100
 }
 
-export function ordenarRanking<T extends { nome: string; variacaoProducao: number | null }>(cards: T[]): T[] {
-  const com = cards.filter((c) => c.variacaoProducao != null)
-  const sem = cards.filter((c) => c.variacaoProducao == null)
-  com.sort((a, b) => (b.variacaoProducao! - a.variacaoProducao!) || a.nome.localeCompare(b.nome, 'pt-BR'))
+export function ordenarRanking<T extends {
+  nome: string
+  variacaoProducao: number | null
+  pctMeta?: number | null
+}>(cards: T[]): T[] {
+  const comMeta = cards.filter((c) => c.pctMeta != null)
+  const comVar = cards.filter((c) => c.pctMeta == null && c.variacaoProducao != null)
+  const sem = cards.filter((c) => c.pctMeta == null && c.variacaoProducao == null)
+  comMeta.sort((a, b) => (b.pctMeta! - a.pctMeta!) || a.nome.localeCompare(b.nome, 'pt-BR'))
+  comVar.sort((a, b) => (b.variacaoProducao! - a.variacaoProducao!) || a.nome.localeCompare(b.nome, 'pt-BR'))
   sem.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-  return [...com, ...sem]
+  return [...comMeta, ...comVar, ...sem]
 }
 
 export const CORES_CONTRATO = [

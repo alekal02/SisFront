@@ -27,6 +27,7 @@ import { useBreadcrumbs } from '../contexts/BreadcrumbContext';
 import type { EtapasStatus } from '../components/ServicoMiniFlow';
 import ContratoOperacaoUnificada from '../components/ContratoOperacaoUnificada';
 import WhatsappAutorizadosContrato from '../components/WhatsappAutorizadosContrato';
+import MetasPrecosContrato from './MetasPrecosContrato';
 import RelatoriosMenu from '../components/RelatoriosMenu';
 import { relatoriosDoContexto } from '../relatorios/catalogoRelatorios';
 import DataTable from '../components/DataTable';
@@ -358,10 +359,10 @@ export default function ContratoDetalhe() {
   const [salvandoDensidadePlaca, setSalvandoDensidadePlaca] = useState(false);
   const [exportandoCicloTodos, setExportandoCicloTodos] = useState(false);
   const [dataRelatorio, setDataRelatorio] = useState('');
-  const abaHub = (['operacao', 'relatorios', 'config', 'whatsapp'].includes(searchParams.get('aba') || '')
+  const abaHub = (['operacao', 'relatorios', 'config', 'whatsapp', 'metas'].includes(searchParams.get('aba') || '')
     ? searchParams.get('aba')
-    : 'operacao') as 'operacao' | 'relatorios' | 'config' | 'whatsapp';
-  const setAbaHub = (aba: 'operacao' | 'relatorios' | 'config' | 'whatsapp') => {
+    : 'operacao') as 'operacao' | 'relatorios' | 'config' | 'whatsapp' | 'metas';
+  const setAbaHub = (aba: 'operacao' | 'relatorios' | 'config' | 'whatsapp' | 'metas') => {
     const next = new URLSearchParams(searchParams);
     if (aba === 'operacao') next.delete('aba');
     else next.set('aba', aba);
@@ -1163,12 +1164,17 @@ export default function ContratoDetalhe() {
         <button type="button" className={abaHub === 'config' ? 'is-on' : ''} onClick={() => setAbaHub('config')}>
           Configuração
         </button>
+        <button type="button" className={abaHub === 'metas' ? 'is-on' : ''} onClick={() => setAbaHub('metas')}>
+          Metas e preços
+        </button>
         <button type="button" className={abaHub === 'whatsapp' ? 'is-on' : ''} onClick={() => setAbaHub('whatsapp')}>
           WhatsApp
         </button>
       </nav>
 
       {abaHub === 'whatsapp' && id && <WhatsappAutorizadosContrato contractId={id} />}
+
+      {abaHub === 'metas' && id && <MetasPrecosContrato contractId={id} />}
 
       {abaHub === 'relatorios' && (
         <section className="contrato-relatorios-hub">

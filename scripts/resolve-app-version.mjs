@@ -67,5 +67,13 @@ export function resolveAppVersion() {
     .find((t) => t && isSemverLike(t))
   if (latestTag) return latestTag
 
+  try {
+    const pkgPath = resolve(dirname(fileURLToPath(import.meta.url)), '../package.json')
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
+    if (pkg.version && isSemverLike(pkg.version)) return pkg.version
+  } catch {
+    /* package.json fora do lugar */
+  }
+
   return 'dev'
 }

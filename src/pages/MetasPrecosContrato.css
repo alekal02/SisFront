@@ -1,0 +1,17 @@
+.mp { display: flex; flex-direction: column; gap: 0.9rem; }
+.mp-topo { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.mp-topo h2 { margin: 0 0 0.25rem; font-size: 1.15rem; }
+.mp-topo p, .mp-nota { margin: 0; color: #5f6368; font-size: 0.85rem; }
+.mp h3 { margin: 0.4rem 0 0; font-size: 0.95rem; }
+.mp-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.6rem; }
+.mp-campo { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.75rem; color: #3c4043; font-weight: 600; }
+.mp-campo input {
+  font-size: 0.9rem; font-weight: 500; padding: 0.4rem 0.5rem;
+  border: 1px solid #dadce0; border-radius: 8px; background: #fff;
+}
+.mp-campo input:disabled { background: #f8f9fa; color: #3c4043; }
+.mp-servico { border-top: 1px solid #e8eaed; padding-top: 0.7rem; }
+.mp-aviso {
+  margin: 0; padding: 0.6rem 0.75rem; border-radius: 8px;
+  background: #fef7e0; color: #8a5a00; font-size: 0.82rem;
+}
