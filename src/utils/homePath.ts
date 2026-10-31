@@ -20,6 +20,6 @@ export function ehGestor(user?: UserData | null): boolean {
 export function homePath(user?: UserData | null): string {
   if (!user) return ROTA_ACESSO
   if (user.contractId) return `/contratos/${user.contractId}`
-  if (ehGestor(user)) return '/visao-geral'
+  if (ehGestor(user)) return '/painel'
   return '/visao-geral'
 }

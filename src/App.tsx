@@ -18,6 +18,8 @@ const ServicoDiaDetalhe = lazy(() => import('./pages/ServicoDiaDetalhe'))
 const ConfiguracaoServico = lazy(() => import('./pages/ConfiguracaoServico'))
 const BibliotecaKpisUniversais = lazy(() => import('./pages/BibliotecaKpisUniversais'))
 const DashboardExecutivo = lazy(() => import('./pages/DashboardExecutivo'))
+const PainelDiretoria = lazy(() => import('./pages/PainelDiretoria'))
+const PainelContratoFinanceiro = lazy(() => import('./pages/PainelContratoFinanceiro'))
 const BibliotecaGraficosPadrao = lazy(() => import('./pages/BibliotecaGraficosPadrao'))
 const Login = lazy(() => import('./pages/Login'))
 
@@ -138,6 +140,30 @@ function App() {
             }
           />
 
+          <Route
+            path="/painel"
+            element={
+              <ProtectedRoute>
+                <GestorOnlyRoute>
+                  <Layout>
+                    <PainelDiretoria />
+                  </Layout>
+                </GestorOnlyRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/painel/:contractId"
+            element={
+              <ProtectedRoute>
+                <GestorOnlyRoute>
+                  <Layout>
+                    <PainelContratoFinanceiro />
+                  </Layout>
+                </GestorOnlyRoute>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/dashboard/executivo"
             element={

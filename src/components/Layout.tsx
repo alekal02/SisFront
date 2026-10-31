@@ -11,6 +11,7 @@ import {
   FiBarChart2,
   FiActivity,
   FiPieChart,
+  FiTrendingUp,
   FiColumns,
   FiFileText,
   FiLogOut,
@@ -29,6 +30,7 @@ const MAPA_TITULOS: Record<string, string> = {
   '/kpis-universais': 'Biblioteca de KPIs',
   '/graficos-padrao': 'Gráficos padrão',
   '/whatsapp-grupos': 'WhatsApp',
+  '/painel': 'Diretoria',
   '/dashboard/executivo': 'Relatórios executivos',
 }
 
@@ -49,7 +51,7 @@ function Layout({ children }: LayoutProps) {
   const naUnidade = Boolean(user?.contractId)
   const home = user?.contractId
     ? `/contratos/${user.contractId}`
-    : (gestor ? '/visao-geral' : '/contratos')
+    : (gestor ? '/painel' : '/contratos')
   const location = useLocation()
   const navigate = useNavigate()
   const [sidebarAberta, setSidebarAberta] = useState(() =>
@@ -140,6 +142,14 @@ function Layout({ children }: LayoutProps) {
               <div className={`sidebar-section-label ${sidebarAberta ? '' : 'hidden-text'}`}>
                 Gestor
               </div>
+              <Link
+                to="/painel"
+                className={`sidebar-link ${location.pathname.startsWith('/painel') ? 'active' : ''}`}
+                onClick={fecharSidebarMobile}
+              >
+                <span className="sidebar-icon"><FiTrendingUp size={20} /></span>
+                <span className={sidebarAberta ? '' : 'hidden-text'}>Diretoria</span>
+              </Link>
               <Link
                 to="/visao-geral?aba=contratos"
                 className={`sidebar-link ${location.pathname === '/visao-geral' && !location.search.includes('aba=comparativo') && !location.search.includes('aba=relatorios') && !location.search.includes('aba=whatsapp') ? 'active' : ''}`}
@@ -273,7 +283,7 @@ function Layout({ children }: LayoutProps) {
                 className="btn-logout-header"
                 onClick={() => {
                   void sairContrato()
-                    .then(() => navigate('/visao-geral?aba=contratos'))
+                    .then(() => navigate('/painel'))
                     .catch(() => {
                       /* 401/404 já limpa o token e volta ao login */
                     })
